@@ -345,7 +345,7 @@ namespace Step23
   void WaveEquation<dim>::setup_system ()
   {
     GridGenerator::hyper_cube (triangulation, -1, 1);
-    triangulation.refine_global (3);
+    triangulation.refine_global (6);
 
     std::cout << "Number of active cells: "
               << triangulation.n_active_cells()
@@ -675,6 +675,12 @@ namespace Step23
     double initial_time = 0;
     double final_time = 0.5;
 
+    double rho = 1;
+
+    timestep_number = 0;
+
+    output_results();
+
     timestep_number = 1;
     time = initial_time + time_step;
 
@@ -694,7 +700,7 @@ namespace Step23
         system_rhs.add (time_step, tmp);
 
         laplace_matrix.vmult (tmp, old_solution_u);
-        system_rhs.add (-theta * (1-theta) * time_step * time_step, tmp);
+        system_rhs.add (-theta * (1-theta) * time_step * time_step / rho, tmp);
 
         RightHandSide<dim> rhs_function;
         rhs_function.set_time (time);
@@ -708,6 +714,7 @@ namespace Step23
                                              rhs_function, tmp);
 
         forcing_terms.add ((1-theta) * time_step, tmp);
+        forcing_terms *= 1.0 / rho;
 
         system_rhs.add (theta * time_step, forcing_terms);
 
@@ -735,7 +742,7 @@ namespace Step23
           // actually apply boundary data. The actual content is very simple:
           // it is the sum of the mass matrix and a weighted Laplace matrix:
           matrix_u.copy_from (mass_matrix);
-          matrix_u.add (theta * theta * time_step * time_step, laplace_matrix);
+          matrix_u.add (theta * theta * time_step * time_step / rho, laplace_matrix);
           MatrixTools::apply_boundary_values (boundary_values,
                                               matrix_u,
                                               solution_u,
@@ -752,13 +759,13 @@ namespace Step23
         // are applied in the same way as before, except that now we have to
         // use the BoundaryValuesV class:
         laplace_matrix.vmult (system_rhs, solution_u);
-        system_rhs *= -theta * time_step;
+        system_rhs *= -theta * time_step / rho;
 
         mass_matrix.vmult (tmp, old_solution_v);
         system_rhs += tmp;
 
         laplace_matrix.vmult (tmp, old_solution_u);
-        system_rhs.add (-time_step * (1-theta), tmp);
+        system_rhs.add (-time_step * (1-theta) / rho, tmp);
 
         system_rhs += forcing_terms;
 
