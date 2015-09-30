@@ -44,6 +44,7 @@
 #include <deal.II/dofs/dof_tools.h>
 
 #include <deal.II/fe/fe_q.h>
+#include <deal.II/fe/fe_system.h>
 #include <deal.II/fe/fe_values.h>
 
 #include <deal.II/numerics/data_out.h>
@@ -118,13 +119,14 @@ namespace Step23
     WaveEquation ( double time_step, double theta );
     void run ();
 
+    void assemble_system();
     void setup_system ();
     void solve_u ();
     void solve_v ();
     void output_results () const;
 
     Triangulation<dim>   triangulation;
-    FE_Q<dim>            fe;
+    FESystem<dim>        fe;
     DoFHandler<dim>      dof_handler;
 
     ConstraintMatrix constraints;
@@ -146,145 +148,167 @@ namespace Step23
 
 
 
-  // @sect3{Equation data}
 
-  // Before we go on filling in the details of the main class, let us define
-  // the equation data corresponding to the problem, i.e. initial and boundary
-  // values for both the solution $u$ and its time derivative $v$, as well as
-  // a right hand side class. We do so using classes derived from the Function
-  // class template that has been used many times before, so the following
-  // should not be a surprise.
+
+  template <int dim>
+  class RightHandSide :  public Function<dim>
+  {
+  public:
+    RightHandSide ();
+
+    // The next change is that we want a replacement for the
+    // <code>value</code> function of the previous examples. There, a second
+    // parameter <code>component</code> was given, which denoted which
+    // component was requested. Here, we implement a function that returns the
+    // whole vector of values at the given place at once, in the second
+    // argument of the function. The obvious name for such a replacement
+    // function is <code>vector_value</code>.
+    //
+    // Secondly, in analogy to the <code>value_list</code> function, there is
+    // a function <code>vector_value_list</code>, which returns the values of
+    // the vector-valued function at several points at once:
+    virtual void vector_value (const Point<dim> &p,
+                               Vector<double>   &values) const;
+
+    virtual void vector_value_list (const std::vector<Point<dim> > &points,
+                                    std::vector<Vector<double> >   &value_list) const;
+  };
+
+
+  // This is the constructor of the right hand side class. As said above, it
+  // only passes down to the base class the number of components, which is
+  // <code>dim</code> in the present case (one force component in each of the
+  // <code>dim</code> space directions).
   //
-  // Let's start with initial values and choose zero for both the value $u$ as
-  // well as its time derivative, the velocity $v$:
+  // Some people would have moved the definition of such a short function
+  // right into the class declaration. We do not do that, as a matter of
+  // style: the deal.II style guides require that class declarations contain
+  // only declarations, and that definitions are always to be found
+  // outside. This is, obviously, as much as matter of taste as indentation,
+  // but we try to be consistent in this direction.
   template <int dim>
-  class InitialValuesU : public Function<dim>
-  {
-  public:
-    InitialValuesU () : Function<dim>() {}
-
-    virtual double value (const Point<dim>   &p,
-                          const unsigned int  component = 0) const;
-  };
+  RightHandSide<dim>::RightHandSide ()
+    :
+    Function<dim> (dim)
+  {}
 
 
+  // Next the function that returns the whole vector of values at the point
+  // <code>p</code> at once.
+  //
+  // To prevent cases where the return vector has not previously been set to
+  // the right size we test for this case and otherwise throw an exception at
+  // the beginning of the function. Note that enforcing that output arguments
+  // already have the correct size is a convention in deal.II, and enforced
+  // almost everywhere. The reason is that we would otherwise have to check at
+  // the beginning of the function and possibly change the size of the output
+  // vector. This is expensive, and would almost always be unnecessary (the
+  // first call to the function would set the vector to the right size, and
+  // subsequent calls would only have to do redundant checks). In addition,
+  // checking and possibly resizing the vector is an operation that can not be
+  // removed if we can't rely on the assumption that the vector already has
+  // the correct size; this is in contract to the <code>Assert</code> call
+  // that is completely removed if the program is compiled in optimized mode.
+  //
+  // Likewise, if by some accident someone tried to compile and run the
+  // program in only one space dimension (in which the elastic equations do
+  // not make much sense since they reduce to the ordinary Laplace equation),
+  // we terminate the program in the second assertion. The program will work
+  // just fine in 3d, however.
   template <int dim>
-  class InitialValuesV : public Function<dim>
+  inline
+  void RightHandSide<dim>::vector_value (const Point<dim> &p,
+                                         Vector<double>   &values) const
   {
-  public:
-    InitialValuesV () : Function<dim>() {}
+    Assert (values.size() == dim,
+            ExcDimensionMismatch (values.size(), dim));
+    Assert (dim >= 2, ExcNotImplemented());
 
-    virtual double value (const Point<dim>   &p,
-                          const unsigned int  component = 0) const;
-  };
+    // The rest of the function implements computing force values. We will use
+    // a constant (unit) force in x-direction located in two little circles
+    // (or spheres, in 3d) around points (0.5,0) and (-0.5,0), and y-force in
+    // an area around the origin; in 3d, the z-component of these centers is
+    // zero as well.
+    //
+    // For this, let us first define two objects that denote the centers of
+    // these areas. Note that upon construction of the <code>Point</code>
+    // objects, all components are set to zero.
+    Point<dim> point_1, point_2;
+    point_1(0) = 0.5;
+    point_2(0) = -0.5;
 
-
-
-  template <int dim>
-  double InitialValuesU<dim>::value (const Point<dim>  &/*p*/,
-                                     const unsigned int component) const
-  {
-    Assert (component == 0, ExcInternalError());
-    return 0;
-  }
-
-
-
-  template <int dim>
-  double InitialValuesV<dim>::value (const Point<dim>  &/*p*/,
-                                     const unsigned int component) const
-  {
-    Assert (component == 0, ExcInternalError());
-    return 0;
-  }
-
-
-
-  // Secondly, we have the right hand side forcing term. Boring as we are, we
-  // choose zero here as well:
-  template <int dim>
-  class RightHandSide : public Function<dim>
-  {
-  public:
-    RightHandSide () : Function<dim>() {}
-
-    virtual double value (const Point<dim>   &p,
-                          const unsigned int  component = 0) const;
-  };
-
-
-
-  template <int dim>
-  double RightHandSide<dim>::value (const Point<dim>  &/*p*/,
-                                    const unsigned int component) const
-  {
-    Assert (component == 0, ExcInternalError());
-    return 0;
-  }
-
-
-
-  // Finally, we have boundary values for $u$ and $v$. They are as described
-  // in the introduction, one being the time derivative of the other:
-  template <int dim>
-  class BoundaryValuesU : public Function<dim>
-  {
-  public:
-    BoundaryValuesU () : Function<dim>() {}
-
-    virtual double value (const Point<dim>   &p,
-                          const unsigned int  component = 0) const;
-  };
-
-
-
-
-  template <int dim>
-  class BoundaryValuesV : public Function<dim>
-  {
-  public:
-    BoundaryValuesV () : Function<dim>() {}
-
-    virtual double value (const Point<dim>   &p,
-                          const unsigned int  component = 0) const;
-  };
-
-
-
-
-  template <int dim>
-  double BoundaryValuesU<dim>::value (const Point<dim> &p,
-                                      const unsigned int component) const
-  {
-    Assert (component == 0, ExcInternalError());
-
-    if ((this->get_time() <= 0.5) &&
-        (p[0] < 0) &&
-        (p[1] < 1./3) &&
-        (p[1] > -1./3))
-      return std::sin (this->get_time() * 4 * numbers::PI);
+    // If now the point <code>p</code> is in a circle (sphere) of radius 0.2
+    // around one of these points, then set the force in x-direction to one,
+    // otherwise to zero:
+    if (((p-point_1).norm_square() < 0.2*0.2) ||
+        ((p-point_2).norm_square() < 0.2*0.2))
+      values(0) = 1;
     else
-      return 0;
-  }
+      values(0) = 0;
 
-
-
-  template <int dim>
-  double BoundaryValuesV<dim>::value (const Point<dim> &p,
-                                      const unsigned int component) const
-  {
-    Assert (component == 0, ExcInternalError());
-
-    if ((this->get_time() <= 0.5) &&
-        (p[0] < 0) &&
-        (p[1] < 1./3) &&
-        (p[1] > -1./3))
-      return (std::cos (this->get_time() * 4 * numbers::PI) *
-              4 * numbers::PI);
+    // Likewise, if <code>p</code> is in the vicinity of the origin, then set
+    // the y-force to 1, otherwise to zero:
+    if (p.norm_square() < 0.2*0.2)
+      values(1) = 1;
     else
-      return 0;
+      values(1) = 0;
   }
 
+
+
+  // Now, this is the function of the right hand side class that returns the
+  // values at several points at once. The function starts out with checking
+  // that the number of input and output arguments is equal (the sizes of the
+  // individual output vectors will be checked in the function that we call
+  // further down below). Next, we define an abbreviation for the number of
+  // points which we shall work on, to make some things simpler below.
+  template <int dim>
+  void RightHandSide<dim>::vector_value_list (const std::vector<Point<dim> > &points,
+                                              std::vector<Vector<double> >   &value_list) const
+  {
+    Assert (value_list.size() == points.size(),
+            ExcDimensionMismatch (value_list.size(), points.size()));
+
+    const unsigned int n_points = points.size();
+
+    // Finally we treat each of the points. In one of the previous examples,
+    // we have explained why the
+    // <code>value_list</code>/<code>vector_value_list</code> function had
+    // been introduced: to prevent us from calling virtual functions too
+    // frequently. On the other hand, we now need to implement the same
+    // function twice, which can lead to confusion if one function is changed
+    // but the other is not.
+    //
+    // We can prevent this situation by calling
+    // <code>RightHandSide::vector_value</code> on each point in the input
+    // list. Note that by giving the full name of the function, including the
+    // class name, we instruct the compiler to explicitly call this function,
+    // and not to use the virtual function call mechanism that would be used
+    // if we had just called <code>vector_value</code>. This is important,
+    // since the compiler generally can't make any assumptions which function
+    // is called when using virtual functions, and it therefore can't inline
+    // the called function into the site of the call. On the contrary, here we
+    // give the fully qualified name, which bypasses the virtual function
+    // call, and consequently the compiler knows exactly which function is
+    // called and will inline above function into the present location. (Note
+    // that we have declared the <code>vector_value</code> function above
+    // <code>inline</code>, though modern compilers are also able to inline
+    // functions even if they have not been declared as inline).
+    //
+    // It is worth noting why we go to such length explaining what we
+    // do. Using this construct, we manage to avoid any inconsistency: if we
+    // want to change the right hand side function, it would be difficult to
+    // always remember that we always have to change two functions in the same
+    // way. Using this forwarding mechanism, we only have to change a single
+    // place (the <code>vector_value</code> function), and the second place
+    // (the <code>vector_value_list</code> function) will always be consistent
+    // with it. At the same time, using virtual function call bypassing, the
+    // code is no less efficient than if we had written it twice in the first
+    // place:
+    for (unsigned int p=0; p<n_points; ++p)
+      RightHandSide<dim>::vector_value (points[p],
+                                        value_list[p]);
+  }
 
 
 
@@ -302,7 +326,7 @@ namespace Step23
   // introduction):
   template <int dim>
   WaveEquation<dim>::WaveEquation ( double time_step, double theta ) :
-    fe (1),
+    fe (FE_Q<dim>(1), dim),
     dof_handler (triangulation),
     time_step( time_step ),
     theta( theta )
@@ -368,8 +392,9 @@ namespace Step23
 
     MatrixCreator::create_mass_matrix (dof_handler, QGauss<dim>(3),
                                        mass_matrix);
-    MatrixCreator::create_laplace_matrix (dof_handler, QGauss<dim>(3),
-                                          laplace_matrix);
+    //MatrixCreator::create_laplace_matrix (dof_handler, QGauss<dim>(3),
+    //                                      laplace_matrix);
+
 
     // The rest of the function is spent on setting vector sizes to the
     // correct value. The final line closes the hanging node constraints
@@ -384,6 +409,201 @@ namespace Step23
     system_rhs.reinit (dof_handler.n_dofs());
 
     constraints.close ();
+
+    assemble_system();
+  }
+
+  template <int dim>
+  void WaveEquation<dim>::assemble_system ()
+  {
+      QGauss<dim>  quadrature_formula(2);
+
+      FEValues<dim> fe_values (fe, quadrature_formula,
+                               update_values   | update_gradients |
+                               update_quadrature_points | update_JxW_values);
+
+      const unsigned int   dofs_per_cell = fe.dofs_per_cell;
+      const unsigned int   n_q_points    = quadrature_formula.size();
+
+      FullMatrix<double>   cell_matrix (dofs_per_cell, dofs_per_cell);
+      Vector<double>       cell_rhs (dofs_per_cell);
+
+      std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell);
+
+      // As was shown in previous examples as well, we need a place where to
+      // store the values of the coefficients at all the quadrature points on a
+      // cell. In the present situation, we have two coefficients, lambda and
+      // mu.
+      std::vector<double>     lambda_values (n_q_points);
+      std::vector<double>     mu_values (n_q_points);
+
+      // Well, we could as well have omitted the above two arrays since we will
+      // use constant coefficients for both lambda and mu, which can be declared
+      // like this. They both represent functions always returning the constant
+      // value 1.0. Although we could omit the respective factors in the
+      // assemblage of the matrix, we use them here for purpose of
+      // demonstration.
+      ConstantFunction<dim> lambda(1.), mu(1.);
+
+      // Then again, we need to have the same for the right hand side. This is
+      // exactly as before in previous examples. However, we now have a
+      // vector-valued right hand side, which is why the data type of the
+      // <code>rhs_values</code> array is changed. We initialize it by
+      // <code>n_q_points</code> elements, each of which is a
+      // <code>Vector@<double@></code> with <code>dim</code> elements.
+      RightHandSide<dim>      right_hand_side;
+      std::vector<Vector<double> > rhs_values (n_q_points,
+                                               Vector<double>(dim));
+
+      // Now we can begin with the loop over all cells:
+      typename DoFHandler<dim>::active_cell_iterator cell = dof_handler.begin_active(),
+                                                     endc = dof_handler.end();
+      for (; cell!=endc; ++cell)
+        {
+          cell_matrix = 0;
+          cell_rhs = 0;
+
+          fe_values.reinit (cell);
+
+          // Next we get the values of the coefficients at the quadrature
+          // points. Likewise for the right hand side:
+          lambda.value_list (fe_values.get_quadrature_points(), lambda_values);
+          mu.value_list     (fe_values.get_quadrature_points(), mu_values);
+
+          right_hand_side.vector_value_list (fe_values.get_quadrature_points(),
+                                             rhs_values);
+
+          // Then assemble the entries of the local stiffness matrix and right
+          // hand side vector. This follows almost one-to-one the pattern
+          // described in the introduction of this example.  One of the few
+          // comments in place is that we can compute the number
+          // <code>comp(i)</code>, i.e. the index of the only nonzero vector
+          // component of shape function <code>i</code> using the
+          // <code>fe.system_to_component_index(i).first</code> function call
+          // below.
+          //
+          // (By accessing the <code>first</code> variable of the return value
+          // of the <code>system_to_component_index</code> function, you might
+          // already have guessed that there is more in it. In fact, the
+          // function returns a <code>std::pair@<unsigned int, unsigned
+          // int@></code>, of which the first element is <code>comp(i)</code>
+          // and the second is the value <code>base(i)</code> also noted in the
+          // introduction, i.e.  the index of this shape function within all the
+          // shape functions that are nonzero in this component,
+          // i.e. <code>base(i)</code> in the diction of the introduction. This
+          // is not a number that we are usually interested in, however.)
+          //
+          // With this knowledge, we can assemble the local matrix
+          // contributions:
+          for (unsigned int i=0; i<dofs_per_cell; ++i)
+            {
+              const unsigned int
+              component_i = fe.system_to_component_index(i).first;
+
+              for (unsigned int j=0; j<dofs_per_cell; ++j)
+                {
+                  const unsigned int
+                  component_j = fe.system_to_component_index(j).first;
+
+                  for (unsigned int q_point=0; q_point<n_q_points;
+                       ++q_point)
+                    {
+                      cell_matrix(i,j)
+                      +=
+                        // The first term is (lambda d_i u_i, d_j v_j) + (mu d_i
+                        // u_j, d_j v_i).  Note that
+                        // <code>shape_grad(i,q_point)</code> returns the
+                        // gradient of the only nonzero component of the i-th
+                        // shape function at quadrature point q_point. The
+                        // component <code>comp(i)</code> of the gradient, which
+                        // is the derivative of this only nonzero vector
+                        // component of the i-th shape function with respect to
+                        // the comp(i)th coordinate is accessed by the appended
+                        // brackets.
+                        (
+                          (fe_values.shape_grad(i,q_point)[component_i] *
+                           fe_values.shape_grad(j,q_point)[component_j] *
+                           lambda_values[q_point])
+                          +
+                          (fe_values.shape_grad(i,q_point)[component_j] *
+                           fe_values.shape_grad(j,q_point)[component_i] *
+                           mu_values[q_point])
+                          +
+                          // The second term is (mu nabla u_i, nabla v_j).  We
+                          // need not access a specific component of the
+                          // gradient, since we only have to compute the scalar
+                          // product of the two gradients, of which an
+                          // overloaded version of the operator* takes care, as
+                          // in previous examples.
+                          //
+                          // Note that by using the ?: operator, we only do this
+                          // if comp(i) equals comp(j), otherwise a zero is
+                          // added (which will be optimized away by the
+                          // compiler).
+                          ((component_i == component_j) ?
+                           (fe_values.shape_grad(i,q_point) *
+                            fe_values.shape_grad(j,q_point) *
+                            mu_values[q_point])  :
+                           0)
+                        )
+                        *
+                        fe_values.JxW(q_point);
+                    }
+                }
+            }
+
+          // Assembling the right hand side is also just as discussed in the
+          // introduction:
+          for (unsigned int i=0; i<dofs_per_cell; ++i)
+            {
+              const unsigned int
+              component_i = fe.system_to_component_index(i).first;
+
+              for (unsigned int q_point=0; q_point<n_q_points; ++q_point)
+                cell_rhs(i) += fe_values.shape_value(i,q_point) *
+                               rhs_values[q_point](component_i) *
+                               fe_values.JxW(q_point);
+            }
+
+          // The transfer from local degrees of freedom into the global matrix
+          // and right hand side vector does not depend on the equation under
+          // consideration, and is thus the same as in all previous
+          // examples. The same holds for the elimination of hanging nodes from
+          // the matrix and right hand side, once we are done with assembling
+          // the entire linear system:
+          cell->get_dof_indices (local_dof_indices);
+          for (unsigned int i=0; i<dofs_per_cell; ++i)
+            {
+              for (unsigned int j=0; j<dofs_per_cell; ++j)
+                laplace_matrix.add (local_dof_indices[i],
+                                   local_dof_indices[j],
+                                   cell_matrix(i,j));
+
+              system_rhs(local_dof_indices[i]) += cell_rhs(i);
+            }
+        }
+
+      constraints.condense (laplace_matrix);
+      constraints.condense (system_rhs);
+
+      // The interpolation of the boundary values needs a small modification:
+      // since the solution function is vector-valued, so need to be the
+      // boundary values. The <code>ZeroFunction</code> constructor accepts a
+      // parameter that tells it that it shall represent a vector valued,
+      // constant zero function with that many components. By default, this
+      // parameter is equal to one, in which case the <code>ZeroFunction</code>
+      // object would represent a scalar function. Since the solution vector has
+      // <code>dim</code> components, we need to pass <code>dim</code> as number
+      // of components to the zero function as well.
+      std::map<types::global_dof_index,double> boundary_values;
+      VectorTools::interpolate_boundary_values (dof_handler,
+                                                0,
+                                                ZeroFunction<dim>(dim),
+                                                boundary_values);
+      MatrixTools::apply_boundary_values (boundary_values,
+                                          laplace_matrix,
+                                          solution_u,
+                                          system_rhs);
   }
 
 
@@ -404,7 +624,7 @@ namespace Step23
   template <int dim>
   void WaveEquation<dim>::solve_u ()
   {
-    SolverControl           solver_control (1000, 1e-8*system_rhs.l2_norm());
+    SolverControl           solver_control (1000, 1e-12*system_rhs.l2_norm());
     SolverCG<>              cg (solver_control);
 
     cg.solve (matrix_u, solution_u, system_rhs,
@@ -419,7 +639,7 @@ namespace Step23
   template <int dim>
   void WaveEquation<dim>::solve_v ()
   {
-    SolverControl           solver_control (1000, 1e-8*system_rhs.l2_norm());
+    SolverControl           solver_control (1000, 1e-12*system_rhs.l2_norm());
     SolverCG<>              cg (solver_control);
 
     cg.solve (matrix_v, solution_v, system_rhs,
@@ -442,7 +662,6 @@ namespace Step23
   template <int dim>
   void WaveEquation<dim>::output_results () const
   {
-      return;
     DataOut<dim> data_out;
 
     data_out.attach_dof_handler (dof_handler);
@@ -453,9 +672,9 @@ namespace Step23
 
     const std::string filename = "solution-" +
                                  Utilities::int_to_string (timestep_number, 3) +
-                                 ".gnuplot";
+                                 ".vtk";
     std::ofstream output (filename.c_str());
-    data_out.write_gnuplot (output);
+    data_out.write_vtk (output);
   }
 
 
@@ -475,13 +694,6 @@ namespace Step23
   void WaveEquation<dim>::run ()
   {
     setup_system();
-
-    VectorTools::project (dof_handler, constraints, QGauss<dim>(3),
-                          InitialValuesU<dim>(),
-                          old_solution_u);
-    VectorTools::project (dof_handler, constraints, QGauss<dim>(3),
-                          InitialValuesV<dim>(),
-                          old_solution_v);
 
     // The next thing is to loop over all the time steps until we reach the
     // end time ($T=5$ in this case). In each time step, we first have to
@@ -555,14 +767,12 @@ namespace Step23
         // usually do. The result is then handed off to the solve_u()
         // function:
         {
-          BoundaryValuesU<dim> boundary_values_u_function;
-          boundary_values_u_function.set_time (time);
+            std::map<types::global_dof_index,double> boundary_values;
+            VectorTools::interpolate_boundary_values (dof_handler,
+                                                      0,
+                                                      ZeroFunction<dim>(dim),
+                                                      boundary_values);
 
-          std::map<types::global_dof_index,double> boundary_values;
-          VectorTools::interpolate_boundary_values (dof_handler,
-                                                    0,
-                                                    boundary_values_u_function,
-                                                    boundary_values);
 
           // The matrix for solve_u() is the same in every time steps, so one
           // could think that it is enough to do this only once at the
@@ -601,14 +811,11 @@ namespace Step23
         system_rhs += forcing_terms;
 
         {
-          BoundaryValuesV<dim> boundary_values_v_function;
-          boundary_values_v_function.set_time (time);
-
-          std::map<types::global_dof_index,double> boundary_values;
-          VectorTools::interpolate_boundary_values (dof_handler,
-                                                    0,
-                                                    boundary_values_v_function,
-                                                    boundary_values);
+            std::map<types::global_dof_index,double> boundary_values;
+            VectorTools::interpolate_boundary_values (dof_handler,
+                                                      0,
+                                                      ZeroFunction<dim>(dim),
+                                                      boundary_values);
           matrix_v.copy_from (mass_matrix);
           MatrixTools::apply_boundary_values (boundary_values,
                                               matrix_v,
@@ -661,7 +868,7 @@ int main ()
       double time_step = 0.1;
       double theta = 0.5;
 
-      unsigned int nbComputations = 10;
+      unsigned int nbComputations = 5;
 
       std::vector<unsigned int> nbTimeSteps( nbComputations );
       std::vector<double> solution_l2_norm( nbComputations );
