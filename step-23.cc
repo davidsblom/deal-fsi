@@ -25,6 +25,7 @@
 #include <deal.II/base/quadrature_lib.h>
 #include <deal.II/base/function.h>
 #include <deal.II/base/logstream.h>
+#include <deal.II/lac/sparse_direct.h>
 
 #include <deal.II/lac/vector.h>
 #include <deal.II/lac/full_matrix.h>
@@ -233,25 +234,39 @@ namespace Step23
     // For this, let us first define two objects that denote the centers of
     // these areas. Note that upon construction of the <code>Point</code>
     // objects, all components are set to zero.
-    Point<dim> point_1, point_2;
-    point_1(0) = 0.5;
-    point_2(0) = -0.5;
+    // Point<dim> point_1, point_2;
+    // point_1(0) = 0.5;
+    // point_2(0) = -0.5;
+    //
+    // // If now the point <code>p</code> is in a circle (sphere) of radius 0.2
+    // // around one of these points, then set the force in x-direction to one,
+    // // otherwise to zero:
+    // if (((p-point_1).norm_square() < 0.2*0.2) ||
+    //     ((p-point_2).norm_square() < 0.2*0.2))
+    //   values(0) = 1;
+    // else
+    //   values(0) = 0;
+    //
+    // // Likewise, if <code>p</code> is in the vicinity of the origin, then set
+    // // the y-force to 1, otherwise to zero:
+    // if (p.norm_square() < 0.2*0.2)
+    //   values(1) = 1;
+    // else
+    //   values(1) = 0;
 
-    // If now the point <code>p</code> is in a circle (sphere) of radius 0.2
-    // around one of these points, then set the force in x-direction to one,
-    // otherwise to zero:
-    if (((p-point_1).norm_square() < 0.2*0.2) ||
-        ((p-point_2).norm_square() < 0.2*0.2))
-      values(0) = 1;
-    else
-      values(0) = 0;
+    double rho = 1000;
+    values( 0 ) = 0;
+    values( 1 ) = -2.0 * rho;
 
-    // Likewise, if <code>p</code> is in the vicinity of the origin, then set
-    // the y-force to 1, otherwise to zero:
-    if (p.norm_square() < 0.2*0.2)
-      values(1) = 1;
-    else
-      values(1) = 0;
+    double t = this->get_time();
+    double T = 0.01;
+    double offset = 0.01;
+
+    if ( t - offset < T )
+        values( 1 ) *= 0.5 - 0.5 * std::cos( M_PI * (t - offset) / T );
+
+    if ( t < offset )
+        values( 1 ) = 0.0;
   }
 
 
@@ -344,8 +359,24 @@ namespace Step23
   template <int dim>
   void WaveEquation<dim>::setup_system ()
   {
-    GridGenerator::hyper_cube (triangulation, -1, 1);
-    triangulation.refine_global (6);
+    // GridGenerator::hyper_cube (triangulation, -1, 1);
+
+    double x1 = 0.24899;
+    double y1 = 0.21;
+    double x2 = 0.6;
+    double y2 = 0.19;
+
+    dealii::Point<dim, double> point1( x1, y1 );
+    dealii::Point<dim, double> point2( x2, y2 );
+
+    std::vector<unsigned int> repetitions( dim );
+    repetitions[0] = 35;
+    repetitions[1] = 2;
+
+    // GridGenerator::hyper_rectangle( triangulation, point1, point2 );
+    dealii::GridGenerator::subdivided_hyper_rectangle( triangulation, repetitions, point1, point2, true );
+
+    triangulation.refine_global (2);
 
     std::cout << "Number of active cells: "
               << triangulation.n_active_cells()
@@ -442,7 +473,14 @@ namespace Step23
       // value 1.0. Although we could omit the respective factors in the
       // assemblage of the matrix, we use them here for purpose of
       // demonstration.
-      ConstantFunction<dim> lambda(1.), mu(1.);
+    //   ConstantFunction<dim> lambda(1.), mu(1.);
+
+      double nu = 0.4;
+      double E = 1.4e6;
+      double mu_s = E / ( 2.0 * ( 1.0 + nu ) );
+      double lambda_s = nu * E / ( (1.0 + nu)*(1.0 - 2.0*nu) );
+
+      ConstantFunction<dim> lambda(lambda_s), mu(mu_s);
 
       // Now we can begin with the loop over all cells:
       typename DoFHandler<dim>::active_cell_iterator cell = dof_handler.begin_active(),
@@ -579,8 +617,13 @@ namespace Step23
     SolverControl           solver_control (1000, 1e-12*system_rhs.l2_norm());
     SolverCG<>              cg (solver_control);
 
-    cg.solve (matrix_u, solution_u, system_rhs,
-              PreconditionIdentity());
+    SparseDirectUMFPACK  A_direct;
+    A_direct.initialize(matrix_u);
+
+    // cg.solve (matrix_u, solution_u, system_rhs,
+    //           preconditioner);
+
+    A_direct.vmult (solution_u, system_rhs);
 
     std::cout << "   u-equation: " << solver_control.last_step()
               << " CG iterations."
@@ -594,8 +637,13 @@ namespace Step23
     SolverControl           solver_control (1000, 1e-12*system_rhs.l2_norm());
     SolverCG<>              cg (solver_control);
 
-    cg.solve (matrix_v, solution_v, system_rhs,
-              PreconditionIdentity());
+    SparseDirectUMFPACK  A_direct;
+    A_direct.initialize(matrix_v);
+
+    // cg.solve (matrix_v, solution_v, system_rhs,
+    //           preconditioner);
+
+    A_direct.vmult (solution_v, system_rhs);
 
     std::cout << "   v-equation: " << solver_control.last_step()
               << " CG iterations."
@@ -614,11 +662,25 @@ namespace Step23
   template <int dim>
   void WaveEquation<dim>::output_results () const
   {
+      return;
     DataOut<dim> data_out;
 
+    std::vector<DataComponentInterpretation::DataComponentInterpretation>
+  data_component_interpretation(dim,
+                                DataComponentInterpretation::component_is_part_of_vector);
+    std::vector<std::string> solution_name_u(dim, "displacement");
+    std::vector<std::string> solution_name_v(dim, "velocity");
+
     data_out.attach_dof_handler (dof_handler);
-    data_out.add_data_vector (solution_u, "U");
-    data_out.add_data_vector (solution_v, "V");
+
+    data_out.add_data_vector(solution_u,
+                           solution_name_u,
+                           DataOut<dim>::type_dof_data,
+                           data_component_interpretation);
+    data_out.add_data_vector(solution_v,
+                          solution_name_v,
+                          DataOut<dim>::type_dof_data,
+                          data_component_interpretation);
 
     data_out.build_patches ();
 
@@ -673,9 +735,9 @@ namespace Step23
     Vector<double> forcing_terms (solution_u.size());
 
     double initial_time = 0;
-    double final_time = 0.5;
+    double final_time = 0.05;
 
-    double rho = 1;
+    double rho = 1000.0;
 
     timestep_number = 0;
 
@@ -793,11 +855,6 @@ namespace Step23
         // code:
         output_results ();
 
-        std::cout << "   Total energy: "
-                  << (mass_matrix.matrix_norm_square (solution_v) +
-                      laplace_matrix.matrix_norm_square (solution_u)) / 2
-                  << std::endl;
-
         old_solution_u = solution_u;
         old_solution_v = solution_v;
 
@@ -824,10 +881,10 @@ int main ()
 
       deallog.depth_console (0);
 
-      double time_step = 0.1;
+      double time_step = 1e-2;
       double theta = 0.5;
 
-      unsigned int nbComputations = 5;
+      unsigned int nbComputations = 6;
 
       std::vector<unsigned int> nbTimeSteps( nbComputations );
       std::vector<double> solution_l2_norm( nbComputations );
