@@ -426,7 +426,6 @@ namespace Step23
       const unsigned int   n_q_points    = quadrature_formula.size();
 
       FullMatrix<double>   cell_matrix (dofs_per_cell, dofs_per_cell);
-      Vector<double>       cell_rhs (dofs_per_cell);
 
       std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell);
 
@@ -445,23 +444,12 @@ namespace Step23
       // demonstration.
       ConstantFunction<dim> lambda(1.), mu(1.);
 
-      // Then again, we need to have the same for the right hand side. This is
-      // exactly as before in previous examples. However, we now have a
-      // vector-valued right hand side, which is why the data type of the
-      // <code>rhs_values</code> array is changed. We initialize it by
-      // <code>n_q_points</code> elements, each of which is a
-      // <code>Vector@<double@></code> with <code>dim</code> elements.
-      RightHandSide<dim>      right_hand_side;
-      std::vector<Vector<double> > rhs_values (n_q_points,
-                                               Vector<double>(dim));
-
       // Now we can begin with the loop over all cells:
       typename DoFHandler<dim>::active_cell_iterator cell = dof_handler.begin_active(),
                                                      endc = dof_handler.end();
       for (; cell!=endc; ++cell)
         {
           cell_matrix = 0;
-          cell_rhs = 0;
 
           fe_values.reinit (cell);
 
@@ -469,9 +457,6 @@ namespace Step23
           // points. Likewise for the right hand side:
           lambda.value_list (fe_values.get_quadrature_points(), lambda_values);
           mu.value_list     (fe_values.get_quadrature_points(), mu_values);
-
-          right_hand_side.vector_value_list (fe_values.get_quadrature_points(),
-                                             rhs_values);
 
           // Then assemble the entries of the local stiffness matrix and right
           // hand side vector. This follows almost one-to-one the pattern
@@ -552,18 +537,6 @@ namespace Step23
                 }
             }
 
-          // Assembling the right hand side is also just as discussed in the
-          // introduction:
-          for (unsigned int i=0; i<dofs_per_cell; ++i)
-            {
-              const unsigned int
-              component_i = fe.system_to_component_index(i).first;
-
-              for (unsigned int q_point=0; q_point<n_q_points; ++q_point)
-                cell_rhs(i) += fe_values.shape_value(i,q_point) *
-                               rhs_values[q_point](component_i) *
-                               fe_values.JxW(q_point);
-            }
 
           // The transfer from local degrees of freedom into the global matrix
           // and right hand side vector does not depend on the equation under
@@ -579,31 +552,10 @@ namespace Step23
                                    local_dof_indices[j],
                                    cell_matrix(i,j));
 
-              system_rhs(local_dof_indices[i]) += cell_rhs(i);
             }
         }
 
       constraints.condense (laplace_matrix);
-      constraints.condense (system_rhs);
-
-      // The interpolation of the boundary values needs a small modification:
-      // since the solution function is vector-valued, so need to be the
-      // boundary values. The <code>ZeroFunction</code> constructor accepts a
-      // parameter that tells it that it shall represent a vector valued,
-      // constant zero function with that many components. By default, this
-      // parameter is equal to one, in which case the <code>ZeroFunction</code>
-      // object would represent a scalar function. Since the solution vector has
-      // <code>dim</code> components, we need to pass <code>dim</code> as number
-      // of components to the zero function as well.
-      std::map<types::global_dof_index,double> boundary_values;
-      VectorTools::interpolate_boundary_values (dof_handler,
-                                                0,
-                                                ZeroFunction<dim>(dim),
-                                                boundary_values);
-      MatrixTools::apply_boundary_values (boundary_values,
-                                          laplace_matrix,
-                                          solution_u,
-                                          system_rhs);
   }
 
 
