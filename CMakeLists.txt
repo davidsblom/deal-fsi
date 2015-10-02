@@ -19,6 +19,8 @@ SET(TARGET_SRC
   ${TARGET}.cc
   )
 
+INCLUDE_DIRECTORIES ( "./boost" )
+
 # Usually, you will not need to modify anything beyond this point...
 
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8.8)
