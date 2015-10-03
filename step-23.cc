@@ -93,6 +93,9 @@ namespace Step23
 {
   using namespace dealii;
 
+  template <class Scalar>
+  Vector<Scalar> operator * ( SparseMatrix<Scalar> & A, Vector<Scalar> & b );
+
 
   // @sect3{The <code>WaveEquation</code> class}
 
@@ -155,9 +158,6 @@ namespace Step23
     unsigned int timestep_number;
     const double theta;
   };
-
-
-
 
 
   template <int dim>
@@ -767,12 +767,15 @@ namespace Step23
                   << " at t=" << time
                   << std::endl;
 
-        mass_matrix.vmult (system_rhs, old_solution_u);
+        // mass_matrix.vmult (system_rhs, old_solution_u);
+        system_rhs = mass_matrix * old_solution_u;
 
-        mass_matrix.vmult (tmp, old_solution_v);
+        // mass_matrix.vmult (tmp, old_solution_v);
+        tmp = mass_matrix * old_solution_v;
         system_rhs.add (time_step, tmp);
 
-        laplace_matrix.vmult (tmp, old_solution_u);
+        // laplace_matrix.vmult (tmp, old_solution_u);
+        tmp = laplace_matrix * old_solution_u;
         system_rhs.add (-theta * (1-theta) * time_step * time_step / rho, tmp);
 
         RightHandSide<dim> rhs_function;
@@ -831,13 +834,16 @@ namespace Step23
         // (1-\theta) AU^{n-1}\right]$ plus forcing terms. %Boundary values
         // are applied in the same way as before, except that now we have to
         // use the BoundaryValuesV class:
-        laplace_matrix.vmult (system_rhs, solution_u);
+        // laplace_matrix.vmult (system_rhs, solution_u);
+        system_rhs = laplace_matrix * solution_u;
         system_rhs *= -theta * time_step / rho;
 
-        mass_matrix.vmult (tmp, old_solution_v);
+        // mass_matrix.vmult (tmp, old_solution_v);
+        tmp = mass_matrix * old_solution_v;
         system_rhs += tmp;
 
-        laplace_matrix.vmult (tmp, old_solution_u);
+        // laplace_matrix.vmult (tmp, old_solution_u);
+        tmp = laplace_matrix * old_solution_u;
         system_rhs.add (-time_step * (1-theta) / rho, tmp);
 
         system_rhs += forcing_terms;
@@ -899,6 +905,14 @@ namespace Step23
         std::cout << "   Point value = " << vector_value[1] << std::endl;
 
         return vector_value[1];
+    }
+
+    template <class Scalar>
+    Vector<Scalar> operator * ( SparseMatrix<Scalar> & A, Vector<Scalar> & b )
+    {
+        Vector<Scalar> tmp ( b.size() );
+        A.vmult( tmp, b );
+        return tmp;
     }
 }
 
