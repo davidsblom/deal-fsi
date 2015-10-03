@@ -120,7 +120,7 @@ namespace Step23
   class WaveEquation
   {
   public:
-    WaveEquation ( double time_step, double theta );
+    WaveEquation ( double time_step, double theta, double degree, unsigned int n_global_refines );
     void run ();
 
     void assemble_system();
@@ -128,6 +128,12 @@ namespace Step23
     void solve_u ();
     void solve_v ();
     void output_results () const;
+
+    unsigned int n_dofs() const;
+    double point_value() const ;
+
+    unsigned int deg;
+    unsigned int n_global_refines;
 
     Triangulation<dim>   triangulation;
     FESystem<dim>        fe;
@@ -221,7 +227,7 @@ namespace Step23
   // just fine in 3d, however.
   template <int dim>
   inline
-  void RightHandSide<dim>::vector_value (const Point<dim> &p,
+  void RightHandSide<dim>::vector_value (const Point<dim> &,
                                          Vector<double>   &values) const
   {
     Assert (values.size() == dim,
@@ -343,8 +349,10 @@ namespace Step23
   // time step, see the section on Courant, Friedrichs, and Lewy in the
   // introduction):
   template <int dim>
-  WaveEquation<dim>::WaveEquation ( double time_step, double theta ) :
-    fe (FE_Q<dim>(1), dim),
+  WaveEquation<dim>::WaveEquation ( double time_step, double theta, double degree, unsigned int n_global_refines ) :
+    deg( degree ),
+    n_global_refines( n_global_refines ),
+    fe (FE_Q<dim>(degree), dim),
     dof_handler (triangulation),
     time_step( time_step ),
     theta( theta )
@@ -379,7 +387,7 @@ namespace Step23
     // GridGenerator::hyper_rectangle( triangulation, point1, point2 );
     dealii::GridGenerator::subdivided_hyper_rectangle( triangulation, repetitions, point1, point2, true );
 
-    triangulation.refine_global (2);
+    triangulation.refine_global ( n_global_refines );
 
     std::cout << "Number of active cells: "
               << triangulation.n_active_cells()
@@ -450,7 +458,7 @@ namespace Step23
   template <int dim>
   void WaveEquation<dim>::assemble_system ()
   {
-      QGauss<dim>  quadrature_formula(2);
+      QGauss<dim>  quadrature_formula( deg + 1 );
 
       FEValues<dim> fe_values (fe, quadrature_formula,
                                update_values   | update_gradients |
@@ -665,7 +673,7 @@ namespace Step23
   template <int dim>
   void WaveEquation<dim>::output_results () const
   {
-      return;
+    return;
     DataOut<dim> data_out;
 
     std::vector<DataComponentInterpretation::DataComponentInterpretation>
@@ -868,6 +876,30 @@ namespace Step23
       timestep_number--;
       time = initial_time + timestep_number * time_step;
   }
+
+  template <int dim>
+  unsigned int WaveEquation<dim>::n_dofs() const
+  {
+      return dof_handler.n_dofs();
+  }
+
+    template <int dim>
+    double WaveEquation<dim>::point_value() const
+    {
+        dealii::Point<dim> point( 0.6, 0.2 );
+
+        Vector<double> vector_value( dim );
+
+        VectorTools::point_value( dof_handler,
+            solution_u,
+            point,
+            vector_value
+            );
+
+        std::cout << "   Point value = " << vector_value[1] << std::endl;
+
+        return vector_value[1];
+    }
 }
 
 
@@ -875,6 +907,48 @@ namespace Step23
 
 // What remains is the main function of the program. There is nothing here
 // that hasn't been shown in several of the previous programs:
+
+BOOST_AUTO_TEST_CASE( polynomial_degree_test )
+{
+    using namespace dealii;
+    using namespace Step23;
+
+    deallog.depth_console (0);
+
+    double time_step = 2.5e-3;
+    double theta = 1;
+    unsigned int degree = 3;
+    unsigned int n_global_refines = 0;
+
+    unsigned int nbComputations = 4;
+
+    std::vector<unsigned int> n_dofs( nbComputations );
+    std::vector<double> solution( nbComputations );
+
+    for ( unsigned int i = 0; i < nbComputations; ++i )
+    {
+        n_global_refines = i;
+        WaveEquation<2> wave_equation_solver ( time_step, theta, degree, n_global_refines );
+        wave_equation_solver.run ();
+
+        n_dofs[i] = wave_equation_solver.n_dofs();
+        solution[i] = wave_equation_solver.point_value();
+    }
+
+    std::vector<double> error( nbComputations - 1 );
+
+    for ( unsigned int i = 0; i < error.size(); ++i )
+        error[i] = std::abs( solution[i] - solution[nbComputations - 1] ) / std::abs( solution[nbComputations - 1] );
+
+    for ( unsigned int i = 0; i < error.size() - 1; ++i )
+    {
+        double rate = 2 * std::log10( error[i] / error[i+1] );
+        rate /= std::log10( n_dofs[i+1] / n_dofs[i] );
+
+        BOOST_CHECK_GE( rate, 2 );
+    }
+
+}
 
 
 BOOST_AUTO_TEST_CASE( crank_nicolson_test )
@@ -886,6 +960,8 @@ BOOST_AUTO_TEST_CASE( crank_nicolson_test )
 
   double time_step = 2.5e-3;
   double theta = 0.5;
+  unsigned int degree = 1;
+  unsigned int n_global_refines = 2;
 
   unsigned int nbComputations = 4;
 
@@ -896,7 +972,7 @@ BOOST_AUTO_TEST_CASE( crank_nicolson_test )
   {
       double dt = time_step / std::pow( 2, i );
 
-      WaveEquation<2> wave_equation_solver ( dt, theta );
+      WaveEquation<2> wave_equation_solver ( dt, theta, degree, n_global_refines );
       wave_equation_solver.run ();
 
       if ( i > 0 )
@@ -939,6 +1015,8 @@ BOOST_AUTO_TEST_CASE( backward_euler )
 
   double time_step = 2.5e-3;
   double theta = 1;
+  unsigned int degree = 1;
+  unsigned int n_global_refines = 2;
 
   unsigned int nbComputations = 4;
 
@@ -949,7 +1027,7 @@ BOOST_AUTO_TEST_CASE( backward_euler )
   {
       double dt = time_step / std::pow( 2, i );
 
-      WaveEquation<2> wave_equation_solver ( dt, theta );
+      WaveEquation<2> wave_equation_solver ( dt, theta, degree, n_global_refines );
       wave_equation_solver.run ();
 
       if ( i > 0 )
@@ -992,6 +1070,8 @@ BOOST_AUTO_TEST_CASE( theta )
 
   double time_step = 2.5e-3;
   double theta = 0.6;
+  unsigned int degree = 1;
+  unsigned int n_global_refines = 2;
 
   unsigned int nbComputations = 4;
 
@@ -1002,7 +1082,7 @@ BOOST_AUTO_TEST_CASE( theta )
   {
       double dt = time_step / std::pow( 2, i );
 
-      WaveEquation<2> wave_equation_solver ( dt, theta );
+      WaveEquation<2> wave_equation_solver ( dt, theta, degree, n_global_refines );
       wave_equation_solver.run ();
 
       if ( i > 0 )
