@@ -933,6 +933,8 @@ BOOST_AUTO_TEST_CASE( polynomial_degree_test )
 
         n_dofs[i] = wave_equation_solver.n_dofs();
         solution[i] = wave_equation_solver.point_value();
+
+        BOOST_CHECK_CLOSE( solution[i], -0.001351993, 0.1 );
     }
 
     std::vector<double> error( nbComputations - 1 );
