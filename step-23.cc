@@ -123,7 +123,14 @@ namespace Step23
   class WaveEquation
   {
   public:
-    WaveEquation ( double time_step, double theta, double degree, unsigned int n_global_refines );
+    WaveEquation (
+        double time_step,
+        double theta,
+        double degree,
+        double gravity,
+        double distributed_load,
+        unsigned int n_global_refines
+    );
     void run ();
 
     void assemble_system();
@@ -134,6 +141,8 @@ namespace Step23
 
     unsigned int n_dofs() const;
     double point_value() const ;
+
+    double get_traction( const unsigned int component_i, const unsigned int );
 
     unsigned int deg;
     unsigned int n_global_refines;
@@ -153,10 +162,13 @@ namespace Step23
     Vector<double>       solution_u, solution_v;
     Vector<double>       old_solution_u, old_solution_v;
     Vector<double>       system_rhs;
+    Vector<double>       body_force;
+    Vector<double>       old_body_force;
 
     double time, time_step;
     unsigned int timestep_number;
     const double theta;
+    const double gravity, distributed_load;
   };
 
 
@@ -164,7 +176,7 @@ namespace Step23
   class RightHandSide :  public Function<dim>
   {
   public:
-    RightHandSide ();
+    RightHandSide ( double gravity );
 
     // The next change is that we want a replacement for the
     // <code>value</code> function of the previous examples. There, a second
@@ -182,6 +194,8 @@ namespace Step23
 
     virtual void vector_value_list (const std::vector<Point<dim> > &points,
                                     std::vector<Vector<double> >   &value_list) const;
+    private:
+        const double gravity;
   };
 
 
@@ -197,9 +211,10 @@ namespace Step23
   // outside. This is, obviously, as much as matter of taste as indentation,
   // but we try to be consistent in this direction.
   template <int dim>
-  RightHandSide<dim>::RightHandSide ()
+  RightHandSide<dim>::RightHandSide ( double gravity )
     :
-    Function<dim> (dim)
+    Function<dim> (dim),
+    gravity( gravity )
   {}
 
 
@@ -265,7 +280,7 @@ namespace Step23
 
     double rho = 1000;
     values( 0 ) = 0;
-    values( 1 ) = -2.0 * rho;
+    values( 1 ) = -gravity * rho;
 
     double t = this->get_time();
     double T = 0.01;
@@ -349,15 +364,15 @@ namespace Step23
   // time step, see the section on Courant, Friedrichs, and Lewy in the
   // introduction):
   template <int dim>
-  WaveEquation<dim>::WaveEquation ( double time_step, double theta, double degree, unsigned int n_global_refines ) :
+  WaveEquation<dim>::WaveEquation ( double time_step, double theta, double degree, double gravity, double distributed_load, unsigned int n_global_refines ) :
     deg( degree ),
     n_global_refines( n_global_refines ),
     fe (FE_Q<dim>(degree), dim),
     dof_handler (triangulation),
     time_step( time_step ),
-    theta( theta )
-    // time_step (1./64),
-    // theta (0.5)
+    theta( theta ),
+    gravity( gravity ),
+    distributed_load( distributed_load )
   {}
 
 
@@ -377,15 +392,15 @@ namespace Step23
     double x2 = 0.6;
     double y2 = 0.19;
 
-    dealii::Point<dim, double> point1( x1, y1 );
-    dealii::Point<dim, double> point2( x2, y2 );
+    Point<dim, double> point1( x1, y1 );
+    Point<dim, double> point2( x2, y2 );
 
     std::vector<unsigned int> repetitions( dim );
     repetitions[0] = 35;
     repetitions[1] = 2;
 
     // GridGenerator::hyper_rectangle( triangulation, point1, point2 );
-    dealii::GridGenerator::subdivided_hyper_rectangle( triangulation, repetitions, point1, point2, true );
+    GridGenerator::subdivided_hyper_rectangle( triangulation, repetitions, point1, point2, true );
 
     triangulation.refine_global ( n_global_refines );
 
@@ -449,6 +464,8 @@ namespace Step23
     old_solution_u.reinit (dof_handler.n_dofs());
     old_solution_v.reinit (dof_handler.n_dofs());
     system_rhs.reinit (dof_handler.n_dofs());
+    body_force.reinit (dof_handler.n_dofs());
+    old_body_force.reinit (dof_handler.n_dofs());
 
     constraints.close ();
 
@@ -458,18 +475,27 @@ namespace Step23
   template <int dim>
   void WaveEquation<dim>::assemble_system ()
   {
+      body_force.reinit (dof_handler.n_dofs());
+      laplace_matrix.reinit (sparsity_pattern);
+
       QGauss<dim>  quadrature_formula( deg + 1 );
 
       FEValues<dim> fe_values (fe, quadrature_formula,
                                update_values   | update_gradients |
                                update_quadrature_points | update_JxW_values);
 
+       QGauss<dim - 1>  quadrature_formula_face( deg + 1 );
+       FEFaceValues<dim> fe_face_values( fe, quadrature_formula_face, update_values | update_quadrature_points | update_JxW_values );
+
       const unsigned int   dofs_per_cell = fe.dofs_per_cell;
       const unsigned int   n_q_points    = quadrature_formula.size();
 
       FullMatrix<double>   cell_matrix (dofs_per_cell, dofs_per_cell);
+      Vector<double> cell_rhs( dofs_per_cell );
 
       std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell);
+
+      unsigned int dofs_per_face = fe.n_dofs_per_face();
 
       // As was shown in previous examples as well, we need a place where to
       // store the values of the coefficients at all the quadrature points on a
@@ -499,6 +525,7 @@ namespace Step23
       for (; cell!=endc; ++cell)
         {
           cell_matrix = 0;
+          cell_rhs = 0;
 
           fe_values.reinit (cell);
 
@@ -587,6 +614,29 @@ namespace Step23
             }
 
 
+            for ( unsigned int i = 0; i < dofs_per_cell; ++i )
+            {
+                const unsigned int component_i = fe.system_to_component_index( i ).first;
+
+                for ( unsigned int face = 0; face < GeometryInfo<dim>::faces_per_cell; ++face )
+                {
+                    if ( cell->face( face )->at_boundary() == true
+                        && cell->face( face )->boundary_id() == 3 )
+                    {
+                        fe_face_values.reinit( cell, face );
+
+                        std::vector<unsigned int> local_face_dof_indices( dofs_per_face );
+                        cell->face( face )->get_dof_indices( local_face_dof_indices );
+
+                        assert( dofs_per_face == fe_face_values.n_quadrature_points * dim );
+
+                        for ( unsigned int q = 0; q < fe_face_values.n_quadrature_points; ++q )
+                            cell_rhs( i ) += -get_traction( component_i, local_face_dof_indices[q * dim + component_i] ) * fe_face_values.shape_value( i, q ) * fe_face_values.JxW( q );
+                    }
+                }
+            }
+
+
           // The transfer from local degrees of freedom into the global matrix
           // and right hand side vector does not depend on the equation under
           // consideration, and is thus the same as in all previous
@@ -601,6 +651,7 @@ namespace Step23
                                    local_dof_indices[j],
                                    cell_matrix(i,j));
 
+              body_force(local_dof_indices[i]) += cell_rhs(i);
             }
         }
 
@@ -767,6 +818,8 @@ namespace Step23
                   << " at t=" << time
                   << std::endl;
 
+        assemble_system();
+
         // mass_matrix.vmult (system_rhs, old_solution_u);
         system_rhs = mass_matrix * old_solution_u;
 
@@ -778,10 +831,11 @@ namespace Step23
         tmp = laplace_matrix * old_solution_u;
         system_rhs.add (-theta * (1-theta) * time_step * time_step / rho, tmp);
 
-        RightHandSide<dim> rhs_function;
+        RightHandSide<dim> rhs_function ( gravity );
         rhs_function.set_time (time);
         VectorTools::create_right_hand_side (dof_handler, QGauss<dim>(2),
                                              rhs_function, tmp);
+        tmp += body_force;
         forcing_terms = tmp;
         forcing_terms *= theta * time_step;
 
@@ -789,6 +843,7 @@ namespace Step23
         VectorTools::create_right_hand_side (dof_handler, QGauss<dim>(2),
                                              rhs_function, tmp);
 
+        tmp += old_body_force;
         forcing_terms.add ((1-theta) * time_step, tmp);
         forcing_terms *= 1.0 / rho;
 
@@ -874,6 +929,7 @@ namespace Step23
 
         old_solution_u = solution_u;
         old_solution_v = solution_v;
+        old_body_force = body_force;
 
         timestep_number++;
         time = initial_time + timestep_number * time_step;
@@ -892,7 +948,7 @@ namespace Step23
     template <int dim>
     double WaveEquation<dim>::point_value() const
     {
-        dealii::Point<dim> point( 0.6, 0.2 );
+        Point<dim> point( 0.6, 0.2 );
 
         Vector<double> vector_value( dim );
 
@@ -905,6 +961,27 @@ namespace Step23
         std::cout << "   Point value = " << vector_value[1] << std::endl;
 
         return vector_value[1];
+    }
+
+    template <int dim>
+    double WaveEquation<dim>::get_traction( const unsigned int component_i, const unsigned int )
+    {
+        // return 0;
+        double t = time;
+        double T = 0.01;
+        double offset = 0.01;
+        double value = distributed_load;
+
+        if ( t - offset < T )
+            value *= 0.5 - 0.5 * std::cos( M_PI * (t - offset) / T );
+
+        if ( t < offset )
+            value = 0.0;
+
+        if ( component_i == 1 )
+            return value;
+
+        return 0.0;
     }
 
     template <class Scalar>
@@ -933,6 +1010,8 @@ BOOST_AUTO_TEST_CASE( polynomial_degree_test )
     double theta = 1;
     unsigned int degree = 1;
     unsigned int n_global_refines = 1;
+    double gravity = 2;
+    double distributed_load = 0;
 
     unsigned int nbComputations = 4;
 
@@ -942,7 +1021,7 @@ BOOST_AUTO_TEST_CASE( polynomial_degree_test )
     for ( unsigned int i = 0; i < nbComputations; ++i )
     {
         n_global_refines = i + 2;
-        WaveEquation<2> wave_equation_solver ( time_step, theta, degree, n_global_refines );
+        WaveEquation<2> wave_equation_solver ( time_step, theta, degree, gravity, distributed_load, n_global_refines );
         wave_equation_solver.run ();
 
         n_dofs[i] = wave_equation_solver.n_dofs();
@@ -966,8 +1045,7 @@ BOOST_AUTO_TEST_CASE( polynomial_degree_test )
 
 }
 
-
-BOOST_AUTO_TEST_CASE( crank_nicolson_test )
+BOOST_AUTO_TEST_CASE( crank_nicolson_distributed_load )
 {
   using namespace dealii;
   using namespace Step23;
@@ -978,6 +1056,8 @@ BOOST_AUTO_TEST_CASE( crank_nicolson_test )
   double theta = 0.5;
   unsigned int degree = 1;
   unsigned int n_global_refines = 2;
+  double gravity = 0;
+  double distributed_load = 49.757;
 
   unsigned int nbComputations = 4;
 
@@ -988,7 +1068,7 @@ BOOST_AUTO_TEST_CASE( crank_nicolson_test )
   {
       double dt = time_step / std::pow( 2, i );
 
-      WaveEquation<2> wave_equation_solver ( dt, theta, degree, n_global_refines );
+      WaveEquation<2> wave_equation_solver ( dt, theta, degree, gravity, distributed_load, n_global_refines );
       wave_equation_solver.run ();
 
       if ( i > 0 )
@@ -1005,8 +1085,15 @@ BOOST_AUTO_TEST_CASE( crank_nicolson_test )
 
   std::vector<double> error( nbComputations - 1 );
 
+  for ( unsigned int i = 0; i < solution_l2_norm.size(); ++i )
+    std::cout << "l2norm = " << solution_l2_norm[i] << std::endl;
+
   for ( unsigned int i = 0; i < error.size(); ++i )
+  {
       error[i] = std::abs( solution_l2_norm[i] - solution_l2_norm[nbComputations - 1] ) / std::abs( solution_l2_norm[nbComputations - 1] );
+
+      std::cout << "error = " << error[i] << std::endl;
+  }
 
   std::vector<double> order( nbComputations - 2 );
 
@@ -1016,6 +1103,137 @@ BOOST_AUTO_TEST_CASE( crank_nicolson_test )
       double dtinew = time_step / std::pow( 2, i + 1 );
       order[i] = std::log10( error[i + 1] ) - std::log10( error[i] );
       order[i] /= std::log10( dtinew ) - std::log10( dti );
+      std::cout << "order = " << order[i] << std::endl;
+
+      BOOST_CHECK_GE( order[i], 2 );
+  }
+
+}
+
+BOOST_AUTO_TEST_CASE( crank_nicolson_combined_load )
+{
+  using namespace dealii;
+  using namespace Step23;
+
+  deallog.depth_console (0);
+
+  double time_step = 2.5e-3;
+  double theta = 0.5;
+  unsigned int degree = 1;
+  unsigned int n_global_refines = 2;
+  double gravity = 2;
+  double distributed_load = 49.757;
+
+  unsigned int nbComputations = 4;
+
+  std::vector<unsigned int> nbTimeSteps( nbComputations );
+  std::vector<double> solution_l2_norm( nbComputations );
+
+  for ( unsigned int i = 0; i < nbComputations; ++i )
+  {
+      double dt = time_step / std::pow( 2, i );
+
+      WaveEquation<2> wave_equation_solver ( dt, theta, degree, gravity, distributed_load, n_global_refines );
+      wave_equation_solver.run ();
+
+      if ( i > 0 )
+          assert( nbTimeSteps[i - 1] * 2 == wave_equation_solver.timestep_number );
+
+      double l2norm = 0;
+      for ( unsigned int i = 0; i < wave_equation_solver.solution_v.size(); ++i )
+        l2norm += wave_equation_solver.solution_v[i] * wave_equation_solver.solution_v[i];
+      l2norm = std::sqrt( l2norm );
+
+      solution_l2_norm[i] = l2norm;
+      nbTimeSteps[i] = wave_equation_solver.timestep_number;
+  }
+
+  std::vector<double> error( nbComputations - 1 );
+
+  for ( unsigned int i = 0; i < solution_l2_norm.size(); ++i )
+    std::cout << "l2norm = " << solution_l2_norm[i] << std::endl;
+
+  for ( unsigned int i = 0; i < error.size(); ++i )
+  {
+      error[i] = std::abs( solution_l2_norm[i] - solution_l2_norm[nbComputations - 1] ) / std::abs( solution_l2_norm[nbComputations - 1] );
+
+      std::cout << "error = " << error[i] << std::endl;
+  }
+
+  std::vector<double> order( nbComputations - 2 );
+
+  for ( unsigned int i = 0; i < order.size(); ++i )
+  {
+      double dti = time_step / std::pow( 2, i );
+      double dtinew = time_step / std::pow( 2, i + 1 );
+      order[i] = std::log10( error[i + 1] ) - std::log10( error[i] );
+      order[i] /= std::log10( dtinew ) - std::log10( dti );
+      std::cout << "order = " << order[i] << std::endl;
+
+      BOOST_CHECK_GE( order[i], 2 );
+  }
+
+}
+
+BOOST_AUTO_TEST_CASE( crank_nicolson_test )
+{
+  using namespace dealii;
+  using namespace Step23;
+
+  deallog.depth_console (0);
+
+  double time_step = 2.5e-3;
+  double theta = 0.5;
+  unsigned int degree = 1;
+  unsigned int n_global_refines = 2;
+  double gravity = 2;
+  double distributed_load = 0;
+
+  unsigned int nbComputations = 4;
+
+  std::vector<unsigned int> nbTimeSteps( nbComputations );
+  std::vector<double> solution_l2_norm( nbComputations );
+
+  for ( unsigned int i = 0; i < nbComputations; ++i )
+  {
+      double dt = time_step / std::pow( 2, i );
+
+      WaveEquation<2> wave_equation_solver ( dt, theta, degree, gravity, distributed_load, n_global_refines );
+      wave_equation_solver.run ();
+
+      if ( i > 0 )
+          assert( nbTimeSteps[i - 1] * 2 == wave_equation_solver.timestep_number );
+
+      double l2norm = 0;
+      for ( unsigned int i = 0; i < wave_equation_solver.solution_v.size(); ++i )
+        l2norm += wave_equation_solver.solution_v[i] * wave_equation_solver.solution_v[i];
+      l2norm = std::sqrt( l2norm );
+
+      solution_l2_norm[i] = l2norm;
+      nbTimeSteps[i] = wave_equation_solver.timestep_number;
+  }
+
+  std::vector<double> error( nbComputations - 1 );
+
+  for ( unsigned int i = 0; i < solution_l2_norm.size(); ++i )
+    std::cout << "l2norm = " << solution_l2_norm[i] << std::endl;
+
+  for ( unsigned int i = 0; i < error.size(); ++i )
+  {
+      error[i] = std::abs( solution_l2_norm[i] - solution_l2_norm[nbComputations - 1] ) / std::abs( solution_l2_norm[nbComputations - 1] );
+
+      std::cout << "error = " << error[i] << std::endl;
+  }
+
+  std::vector<double> order( nbComputations - 2 );
+
+  for ( unsigned int i = 0; i < order.size(); ++i )
+  {
+      double dti = time_step / std::pow( 2, i );
+      double dtinew = time_step / std::pow( 2, i + 1 );
+      order[i] = std::log10( error[i + 1] ) - std::log10( error[i] );
+      order[i] /= std::log10( dtinew ) - std::log10( dti );
+      std::cout << "order = " << order[i] << std::endl;
 
       BOOST_CHECK_GE( order[i], 2 );
   }
@@ -1033,6 +1251,8 @@ BOOST_AUTO_TEST_CASE( backward_euler )
   double theta = 1;
   unsigned int degree = 1;
   unsigned int n_global_refines = 2;
+  double gravity = 2;
+  double distributed_load = 0;
 
   unsigned int nbComputations = 4;
 
@@ -1043,7 +1263,7 @@ BOOST_AUTO_TEST_CASE( backward_euler )
   {
       double dt = time_step / std::pow( 2, i );
 
-      WaveEquation<2> wave_equation_solver ( dt, theta, degree, n_global_refines );
+      WaveEquation<2> wave_equation_solver ( dt, theta, degree, gravity, distributed_load, n_global_refines );
       wave_equation_solver.run ();
 
       if ( i > 0 )
@@ -1061,7 +1281,10 @@ BOOST_AUTO_TEST_CASE( backward_euler )
   std::vector<double> error( nbComputations - 1 );
 
   for ( unsigned int i = 0; i < error.size(); ++i )
+  {
       error[i] = std::abs( solution_l2_norm[i] - solution_l2_norm[nbComputations - 1] ) / std::abs( solution_l2_norm[nbComputations - 1] );
+      std::cout << "error = " << error[i] << std::endl;
+  }
 
   std::vector<double> order( nbComputations - 2 );
 
@@ -1071,6 +1294,8 @@ BOOST_AUTO_TEST_CASE( backward_euler )
       double dtinew = time_step / std::pow( 2, i + 1 );
       order[i] = std::log10( error[i + 1] ) - std::log10( error[i] );
       order[i] /= std::log10( dtinew ) - std::log10( dti );
+
+      std::cout << "order = " << order[i] << std::endl;
 
       BOOST_CHECK_GE( order[i], 1 );
   }
@@ -1088,6 +1313,8 @@ BOOST_AUTO_TEST_CASE( theta )
   double theta = 0.6;
   unsigned int degree = 1;
   unsigned int n_global_refines = 2;
+  double gravity = 2;
+  double distributed_load = 0;
 
   unsigned int nbComputations = 4;
 
@@ -1098,7 +1325,7 @@ BOOST_AUTO_TEST_CASE( theta )
   {
       double dt = time_step / std::pow( 2, i );
 
-      WaveEquation<2> wave_equation_solver ( dt, theta, degree, n_global_refines );
+      WaveEquation<2> wave_equation_solver ( dt, theta, degree, gravity, distributed_load, n_global_refines );
       wave_equation_solver.run ();
 
       if ( i > 0 )
