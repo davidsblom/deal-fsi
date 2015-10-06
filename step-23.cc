@@ -373,7 +373,11 @@ namespace Step23
     theta( theta ),
     gravity( gravity ),
     distributed_load( distributed_load )
-  {}
+  {
+    assert( degree >= 1 );
+    assert( time_step > 0 );
+    assert( theta >= 0 && theta <= 1 );
+  }
 
 
   // @sect4{WaveEquation::setup_system}
