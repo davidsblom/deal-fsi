@@ -1045,6 +1045,52 @@ BOOST_AUTO_TEST_CASE( polynomial_degree_test )
 
 }
 
+BOOST_AUTO_TEST_CASE( polynomial_degree_test_distributed_load )
+{
+    using namespace dealii;
+    using namespace Step23;
+
+    deallog.depth_console (0);
+
+    double time_step = 2.5e-3;
+    double theta = 1;
+    unsigned int degree = 1;
+    unsigned int n_global_refines = 1;
+    double gravity = 0;
+    double distributed_load = 49.757;
+
+    unsigned int nbComputations = 4;
+
+    std::vector<unsigned int> n_dofs( nbComputations );
+    std::vector<double> solution( nbComputations );
+
+    for ( unsigned int i = 0; i < nbComputations; ++i )
+    {
+        n_global_refines = i + 2;
+        WaveEquation<2> wave_equation_solver ( time_step, theta, degree, gravity, distributed_load, n_global_refines );
+        wave_equation_solver.run ();
+
+        n_dofs[i] = wave_equation_solver.n_dofs();
+        solution[i] = wave_equation_solver.point_value();
+
+        BOOST_CHECK_CLOSE( solution[i], -0.0016910513, 0.1 );
+    }
+
+    std::vector<double> error( nbComputations - 1 );
+
+    for ( unsigned int i = 0; i < error.size(); ++i )
+        error[i] = std::abs( solution[i] - solution[nbComputations - 1] ) / std::abs( solution[nbComputations - 1] );
+
+    for ( unsigned int i = 0; i < error.size() - 1; ++i )
+    {
+        double rate = 2 * std::log10( error[i] / error[i+1] );
+        rate /= std::log10( n_dofs[i+1] / n_dofs[i] );
+
+        BOOST_CHECK_GE( rate, 1.9 );
+    }
+
+}
+
 BOOST_AUTO_TEST_CASE( crank_nicolson_distributed_load )
 {
   using namespace dealii;
