@@ -931,8 +931,8 @@ BOOST_AUTO_TEST_CASE( polynomial_degree_test )
 
     double time_step = 2.5e-3;
     double theta = 1;
-    unsigned int degree = 3;
-    unsigned int n_global_refines = 0;
+    unsigned int degree = 1;
+    unsigned int n_global_refines = 1;
 
     unsigned int nbComputations = 4;
 
@@ -941,7 +941,7 @@ BOOST_AUTO_TEST_CASE( polynomial_degree_test )
 
     for ( unsigned int i = 0; i < nbComputations; ++i )
     {
-        n_global_refines = i;
+        n_global_refines = i + 2;
         WaveEquation<2> wave_equation_solver ( time_step, theta, degree, n_global_refines );
         wave_equation_solver.run ();
 
@@ -961,7 +961,7 @@ BOOST_AUTO_TEST_CASE( polynomial_degree_test )
         double rate = 2 * std::log10( error[i] / error[i+1] );
         rate /= std::log10( n_dofs[i+1] / n_dofs[i] );
 
-        BOOST_CHECK_GE( rate, 2 );
+        BOOST_CHECK_GE( rate, 1.9 );
     }
 
 }
