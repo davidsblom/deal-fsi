@@ -1,3 +1,4 @@
+
 /* ---------------------------------------------------------------------
  *
  * Copyright (C) 2006 - 2015 by the deal.II authors
@@ -12,7 +13,7 @@
  * the top level of the deal.II distribution.
  *
  * ---------------------------------------------------------------------
-
+ *
  *
  * Author: Wolfgang Bangerth, Texas A&M University, 2006
  */
@@ -101,7 +102,7 @@ BOOST_AUTO_TEST_CASE( polynomial_degree_test )
     using namespace dealii;
     using namespace Step23;
 
-    deallog.depth_console (0);
+    deallog.depth_console( 0 );
 
     double time_step = 2.5e-3;
     double theta = 1;
@@ -118,8 +119,8 @@ BOOST_AUTO_TEST_CASE( polynomial_degree_test )
     for ( unsigned int i = 0; i < nbComputations; ++i )
     {
         n_global_refines = i + 2;
-        WaveEquation<2> wave_equation_solver ( time_step, theta, degree, gravity, distributed_load, n_global_refines );
-        wave_equation_solver.run ();
+        WaveEquation<2> wave_equation_solver( time_step, theta, degree, gravity, distributed_load, n_global_refines );
+        wave_equation_solver.run();
 
         n_dofs[i] = wave_equation_solver.n_dofs();
         solution[i] = wave_equation_solver.point_value();
@@ -134,12 +135,11 @@ BOOST_AUTO_TEST_CASE( polynomial_degree_test )
 
     for ( unsigned int i = 0; i < error.size() - 1; ++i )
     {
-        double rate = 2 * std::log10( error[i] / error[i+1] );
-        rate /= std::log10( n_dofs[i+1] / n_dofs[i] );
+        double rate = 2 * std::log10( error[i] / error[i + 1] );
+        rate /= std::log10( n_dofs[i + 1] / n_dofs[i] );
 
         BOOST_CHECK_GE( rate, 1.9 );
     }
-
 }
 
 BOOST_AUTO_TEST_CASE( polynomial_degree_test_distributed_load )
@@ -147,7 +147,7 @@ BOOST_AUTO_TEST_CASE( polynomial_degree_test_distributed_load )
     using namespace dealii;
     using namespace Step23;
 
-    deallog.depth_console (0);
+    deallog.depth_console( 0 );
 
     double time_step = 2.5e-3;
     double theta = 1;
@@ -164,8 +164,8 @@ BOOST_AUTO_TEST_CASE( polynomial_degree_test_distributed_load )
     for ( unsigned int i = 0; i < nbComputations; ++i )
     {
         n_global_refines = i + 2;
-        WaveEquation<2> wave_equation_solver ( time_step, theta, degree, gravity, distributed_load, n_global_refines );
-        wave_equation_solver.run ();
+        WaveEquation<2> wave_equation_solver( time_step, theta, degree, gravity, distributed_load, n_global_refines );
+        wave_equation_solver.run();
 
         n_dofs[i] = wave_equation_solver.n_dofs();
         solution[i] = wave_equation_solver.point_value();
@@ -180,324 +180,328 @@ BOOST_AUTO_TEST_CASE( polynomial_degree_test_distributed_load )
 
     for ( unsigned int i = 0; i < error.size() - 1; ++i )
     {
-        double rate = 2 * std::log10( error[i] / error[i+1] );
-        rate /= std::log10( n_dofs[i+1] / n_dofs[i] );
+        double rate = 2 * std::log10( error[i] / error[i + 1] );
+        rate /= std::log10( n_dofs[i + 1] / n_dofs[i] );
 
         BOOST_CHECK_GE( rate, 1.9 );
     }
-
 }
 
 BOOST_AUTO_TEST_CASE( crank_nicolson_distributed_load )
 {
-  using namespace dealii;
-  using namespace Step23;
+    using namespace dealii;
+    using namespace Step23;
 
-  deallog.depth_console (0);
+    deallog.depth_console( 0 );
 
-  double time_step = 2.5e-3;
-  double theta = 0.5;
-  unsigned int degree = 1;
-  unsigned int n_global_refines = 2;
-  double gravity = 0;
-  double distributed_load = 49.757;
+    double time_step = 2.5e-3;
+    double theta = 0.5;
+    unsigned int degree = 1;
+    unsigned int n_global_refines = 2;
+    double gravity = 0;
+    double distributed_load = 49.757;
 
-  unsigned int nbComputations = 4;
+    unsigned int nbComputations = 4;
 
-  std::vector<unsigned int> nbTimeSteps( nbComputations );
-  std::vector<double> solution_l2_norm( nbComputations );
+    std::vector<unsigned int> nbTimeSteps( nbComputations );
+    std::vector<double> solution_l2_norm( nbComputations );
 
-  for ( unsigned int i = 0; i < nbComputations; ++i )
-  {
-      double dt = time_step / std::pow( 2, i );
+    for ( unsigned int i = 0; i < nbComputations; ++i )
+    {
+        double dt = time_step / std::pow( 2, i );
 
-      WaveEquation<2> wave_equation_solver ( dt, theta, degree, gravity, distributed_load, n_global_refines );
-      wave_equation_solver.run ();
+        WaveEquation<2> wave_equation_solver( dt, theta, degree, gravity, distributed_load, n_global_refines );
+        wave_equation_solver.run();
 
-      if ( i > 0 )
-          assert( nbTimeSteps[i - 1] * 2 == wave_equation_solver.timestep_number );
+        if ( i > 0 )
+            assert( nbTimeSteps[i - 1] * 2 == wave_equation_solver.timestep_number );
 
-      double l2norm = 0;
-      for ( unsigned int i = 0; i < wave_equation_solver.solution_v.size(); ++i )
-        l2norm += wave_equation_solver.solution_v[i] * wave_equation_solver.solution_v[i];
-      l2norm = std::sqrt( l2norm );
+        double l2norm = 0;
 
-      solution_l2_norm[i] = l2norm;
-      nbTimeSteps[i] = wave_equation_solver.timestep_number;
-  }
+        for ( unsigned int i = 0; i < wave_equation_solver.solution_v.size(); ++i )
+            l2norm += wave_equation_solver.solution_v[i] * wave_equation_solver.solution_v[i];
 
-  std::vector<double> error( nbComputations - 1 );
+        l2norm = std::sqrt( l2norm );
 
-  for ( unsigned int i = 0; i < solution_l2_norm.size(); ++i )
-    std::cout << "l2norm = " << solution_l2_norm[i] << std::endl;
+        solution_l2_norm[i] = l2norm;
+        nbTimeSteps[i] = wave_equation_solver.timestep_number;
+    }
 
-  for ( unsigned int i = 0; i < error.size(); ++i )
-  {
-      error[i] = std::abs( solution_l2_norm[i] - solution_l2_norm[nbComputations - 1] ) / std::abs( solution_l2_norm[nbComputations - 1] );
+    std::vector<double> error( nbComputations - 1 );
 
-      std::cout << "error = " << error[i] << std::endl;
-  }
+    for ( unsigned int i = 0; i < solution_l2_norm.size(); ++i )
+        std::cout << "l2norm = " << solution_l2_norm[i] << std::endl;
 
-  std::vector<double> order( nbComputations - 2 );
+    for ( unsigned int i = 0; i < error.size(); ++i )
+    {
+        error[i] = std::abs( solution_l2_norm[i] - solution_l2_norm[nbComputations - 1] ) / std::abs( solution_l2_norm[nbComputations - 1] );
 
-  for ( unsigned int i = 0; i < order.size(); ++i )
-  {
-      double dti = time_step / std::pow( 2, i );
-      double dtinew = time_step / std::pow( 2, i + 1 );
-      order[i] = std::log10( error[i + 1] ) - std::log10( error[i] );
-      order[i] /= std::log10( dtinew ) - std::log10( dti );
-      std::cout << "order = " << order[i] << std::endl;
+        std::cout << "error = " << error[i] << std::endl;
+    }
 
-      BOOST_CHECK_GE( order[i], 2 );
-  }
+    std::vector<double> order( nbComputations - 2 );
 
+    for ( unsigned int i = 0; i < order.size(); ++i )
+    {
+        double dti = time_step / std::pow( 2, i );
+        double dtinew = time_step / std::pow( 2, i + 1 );
+        order[i] = std::log10( error[i + 1] ) - std::log10( error[i] );
+        order[i] /= std::log10( dtinew ) - std::log10( dti );
+        std::cout << "order = " << order[i] << std::endl;
+
+        BOOST_CHECK_GE( order[i], 2 );
+    }
 }
 
 BOOST_AUTO_TEST_CASE( crank_nicolson_combined_load )
 {
-  using namespace dealii;
-  using namespace Step23;
+    using namespace dealii;
+    using namespace Step23;
 
-  deallog.depth_console (0);
+    deallog.depth_console( 0 );
 
-  double time_step = 2.5e-3;
-  double theta = 0.5;
-  unsigned int degree = 1;
-  unsigned int n_global_refines = 2;
-  double gravity = 2;
-  double distributed_load = 49.757;
+    double time_step = 2.5e-3;
+    double theta = 0.5;
+    unsigned int degree = 1;
+    unsigned int n_global_refines = 2;
+    double gravity = 2;
+    double distributed_load = 49.757;
 
-  unsigned int nbComputations = 4;
+    unsigned int nbComputations = 4;
 
-  std::vector<unsigned int> nbTimeSteps( nbComputations );
-  std::vector<double> solution_l2_norm( nbComputations );
+    std::vector<unsigned int> nbTimeSteps( nbComputations );
+    std::vector<double> solution_l2_norm( nbComputations );
 
-  for ( unsigned int i = 0; i < nbComputations; ++i )
-  {
-      double dt = time_step / std::pow( 2, i );
+    for ( unsigned int i = 0; i < nbComputations; ++i )
+    {
+        double dt = time_step / std::pow( 2, i );
 
-      WaveEquation<2> wave_equation_solver ( dt, theta, degree, gravity, distributed_load, n_global_refines );
-      wave_equation_solver.run ();
+        WaveEquation<2> wave_equation_solver( dt, theta, degree, gravity, distributed_load, n_global_refines );
+        wave_equation_solver.run();
 
-      if ( i > 0 )
-          assert( nbTimeSteps[i - 1] * 2 == wave_equation_solver.timestep_number );
+        if ( i > 0 )
+            assert( nbTimeSteps[i - 1] * 2 == wave_equation_solver.timestep_number );
 
-      double l2norm = 0;
-      for ( unsigned int i = 0; i < wave_equation_solver.solution_v.size(); ++i )
-        l2norm += wave_equation_solver.solution_v[i] * wave_equation_solver.solution_v[i];
-      l2norm = std::sqrt( l2norm );
+        double l2norm = 0;
 
-      solution_l2_norm[i] = l2norm;
-      nbTimeSteps[i] = wave_equation_solver.timestep_number;
-  }
+        for ( unsigned int i = 0; i < wave_equation_solver.solution_v.size(); ++i )
+            l2norm += wave_equation_solver.solution_v[i] * wave_equation_solver.solution_v[i];
 
-  std::vector<double> error( nbComputations - 1 );
+        l2norm = std::sqrt( l2norm );
 
-  for ( unsigned int i = 0; i < solution_l2_norm.size(); ++i )
-    std::cout << "l2norm = " << solution_l2_norm[i] << std::endl;
+        solution_l2_norm[i] = l2norm;
+        nbTimeSteps[i] = wave_equation_solver.timestep_number;
+    }
 
-  for ( unsigned int i = 0; i < error.size(); ++i )
-  {
-      error[i] = std::abs( solution_l2_norm[i] - solution_l2_norm[nbComputations - 1] ) / std::abs( solution_l2_norm[nbComputations - 1] );
+    std::vector<double> error( nbComputations - 1 );
 
-      std::cout << "error = " << error[i] << std::endl;
-  }
+    for ( unsigned int i = 0; i < solution_l2_norm.size(); ++i )
+        std::cout << "l2norm = " << solution_l2_norm[i] << std::endl;
 
-  std::vector<double> order( nbComputations - 2 );
+    for ( unsigned int i = 0; i < error.size(); ++i )
+    {
+        error[i] = std::abs( solution_l2_norm[i] - solution_l2_norm[nbComputations - 1] ) / std::abs( solution_l2_norm[nbComputations - 1] );
 
-  for ( unsigned int i = 0; i < order.size(); ++i )
-  {
-      double dti = time_step / std::pow( 2, i );
-      double dtinew = time_step / std::pow( 2, i + 1 );
-      order[i] = std::log10( error[i + 1] ) - std::log10( error[i] );
-      order[i] /= std::log10( dtinew ) - std::log10( dti );
-      std::cout << "order = " << order[i] << std::endl;
+        std::cout << "error = " << error[i] << std::endl;
+    }
 
-      BOOST_CHECK_GE( order[i], 2 );
-  }
+    std::vector<double> order( nbComputations - 2 );
 
+    for ( unsigned int i = 0; i < order.size(); ++i )
+    {
+        double dti = time_step / std::pow( 2, i );
+        double dtinew = time_step / std::pow( 2, i + 1 );
+        order[i] = std::log10( error[i + 1] ) - std::log10( error[i] );
+        order[i] /= std::log10( dtinew ) - std::log10( dti );
+        std::cout << "order = " << order[i] << std::endl;
+
+        BOOST_CHECK_GE( order[i], 2 );
+    }
 }
 
 BOOST_AUTO_TEST_CASE( crank_nicolson_test )
 {
-  using namespace dealii;
-  using namespace Step23;
+    using namespace dealii;
+    using namespace Step23;
 
-  deallog.depth_console (0);
+    deallog.depth_console( 0 );
 
-  double time_step = 2.5e-3;
-  double theta = 0.5;
-  unsigned int degree = 1;
-  unsigned int n_global_refines = 2;
-  double gravity = 2;
-  double distributed_load = 0;
+    double time_step = 2.5e-3;
+    double theta = 0.5;
+    unsigned int degree = 1;
+    unsigned int n_global_refines = 2;
+    double gravity = 2;
+    double distributed_load = 0;
 
-  unsigned int nbComputations = 4;
+    unsigned int nbComputations = 4;
 
-  std::vector<unsigned int> nbTimeSteps( nbComputations );
-  std::vector<double> solution_l2_norm( nbComputations );
+    std::vector<unsigned int> nbTimeSteps( nbComputations );
+    std::vector<double> solution_l2_norm( nbComputations );
 
-  for ( unsigned int i = 0; i < nbComputations; ++i )
-  {
-      double dt = time_step / std::pow( 2, i );
+    for ( unsigned int i = 0; i < nbComputations; ++i )
+    {
+        double dt = time_step / std::pow( 2, i );
 
-      WaveEquation<2> wave_equation_solver ( dt, theta, degree, gravity, distributed_load, n_global_refines );
-      wave_equation_solver.run ();
+        WaveEquation<2> wave_equation_solver( dt, theta, degree, gravity, distributed_load, n_global_refines );
+        wave_equation_solver.run();
 
-      if ( i > 0 )
-          assert( nbTimeSteps[i - 1] * 2 == wave_equation_solver.timestep_number );
+        if ( i > 0 )
+            assert( nbTimeSteps[i - 1] * 2 == wave_equation_solver.timestep_number );
 
-      double l2norm = 0;
-      for ( unsigned int i = 0; i < wave_equation_solver.solution_v.size(); ++i )
-        l2norm += wave_equation_solver.solution_v[i] * wave_equation_solver.solution_v[i];
-      l2norm = std::sqrt( l2norm );
+        double l2norm = 0;
 
-      solution_l2_norm[i] = l2norm;
-      nbTimeSteps[i] = wave_equation_solver.timestep_number;
-  }
+        for ( unsigned int i = 0; i < wave_equation_solver.solution_v.size(); ++i )
+            l2norm += wave_equation_solver.solution_v[i] * wave_equation_solver.solution_v[i];
 
-  std::vector<double> error( nbComputations - 1 );
+        l2norm = std::sqrt( l2norm );
 
-  for ( unsigned int i = 0; i < solution_l2_norm.size(); ++i )
-    std::cout << "l2norm = " << solution_l2_norm[i] << std::endl;
+        solution_l2_norm[i] = l2norm;
+        nbTimeSteps[i] = wave_equation_solver.timestep_number;
+    }
 
-  for ( unsigned int i = 0; i < error.size(); ++i )
-  {
-      error[i] = std::abs( solution_l2_norm[i] - solution_l2_norm[nbComputations - 1] ) / std::abs( solution_l2_norm[nbComputations - 1] );
+    std::vector<double> error( nbComputations - 1 );
 
-      std::cout << "error = " << error[i] << std::endl;
-  }
+    for ( unsigned int i = 0; i < solution_l2_norm.size(); ++i )
+        std::cout << "l2norm = " << solution_l2_norm[i] << std::endl;
 
-  std::vector<double> order( nbComputations - 2 );
+    for ( unsigned int i = 0; i < error.size(); ++i )
+    {
+        error[i] = std::abs( solution_l2_norm[i] - solution_l2_norm[nbComputations - 1] ) / std::abs( solution_l2_norm[nbComputations - 1] );
 
-  for ( unsigned int i = 0; i < order.size(); ++i )
-  {
-      double dti = time_step / std::pow( 2, i );
-      double dtinew = time_step / std::pow( 2, i + 1 );
-      order[i] = std::log10( error[i + 1] ) - std::log10( error[i] );
-      order[i] /= std::log10( dtinew ) - std::log10( dti );
-      std::cout << "order = " << order[i] << std::endl;
+        std::cout << "error = " << error[i] << std::endl;
+    }
 
-      BOOST_CHECK_GE( order[i], 2 );
-  }
+    std::vector<double> order( nbComputations - 2 );
 
+    for ( unsigned int i = 0; i < order.size(); ++i )
+    {
+        double dti = time_step / std::pow( 2, i );
+        double dtinew = time_step / std::pow( 2, i + 1 );
+        order[i] = std::log10( error[i + 1] ) - std::log10( error[i] );
+        order[i] /= std::log10( dtinew ) - std::log10( dti );
+        std::cout << "order = " << order[i] << std::endl;
+
+        BOOST_CHECK_GE( order[i], 2 );
+    }
 }
 
 BOOST_AUTO_TEST_CASE( backward_euler )
 {
-  using namespace dealii;
-  using namespace Step23;
+    using namespace dealii;
+    using namespace Step23;
 
-  deallog.depth_console (0);
+    deallog.depth_console( 0 );
 
-  double time_step = 2.5e-3;
-  double theta = 1;
-  unsigned int degree = 1;
-  unsigned int n_global_refines = 2;
-  double gravity = 2;
-  double distributed_load = 0;
+    double time_step = 2.5e-3;
+    double theta = 1;
+    unsigned int degree = 1;
+    unsigned int n_global_refines = 2;
+    double gravity = 2;
+    double distributed_load = 0;
 
-  unsigned int nbComputations = 4;
+    unsigned int nbComputations = 4;
 
-  std::vector<unsigned int> nbTimeSteps( nbComputations );
-  std::vector<double> solution_l2_norm( nbComputations );
+    std::vector<unsigned int> nbTimeSteps( nbComputations );
+    std::vector<double> solution_l2_norm( nbComputations );
 
-  for ( unsigned int i = 0; i < nbComputations; ++i )
-  {
-      double dt = time_step / std::pow( 2, i );
+    for ( unsigned int i = 0; i < nbComputations; ++i )
+    {
+        double dt = time_step / std::pow( 2, i );
 
-      WaveEquation<2> wave_equation_solver ( dt, theta, degree, gravity, distributed_load, n_global_refines );
-      wave_equation_solver.run ();
+        WaveEquation<2> wave_equation_solver( dt, theta, degree, gravity, distributed_load, n_global_refines );
+        wave_equation_solver.run();
 
-      if ( i > 0 )
-          assert( nbTimeSteps[i - 1] * 2 == wave_equation_solver.timestep_number );
+        if ( i > 0 )
+            assert( nbTimeSteps[i - 1] * 2 == wave_equation_solver.timestep_number );
 
-      double l2norm = 0;
-      for ( unsigned int i = 0; i < wave_equation_solver.solution_v.size(); ++i )
-        l2norm += wave_equation_solver.solution_v[i] * wave_equation_solver.solution_v[i];
-      l2norm = std::sqrt( l2norm );
+        double l2norm = 0;
 
-      solution_l2_norm[i] = l2norm;
-      nbTimeSteps[i] = wave_equation_solver.timestep_number;
-  }
+        for ( unsigned int i = 0; i < wave_equation_solver.solution_v.size(); ++i )
+            l2norm += wave_equation_solver.solution_v[i] * wave_equation_solver.solution_v[i];
 
-  std::vector<double> error( nbComputations - 1 );
+        l2norm = std::sqrt( l2norm );
 
-  for ( unsigned int i = 0; i < error.size(); ++i )
-  {
-      error[i] = std::abs( solution_l2_norm[i] - solution_l2_norm[nbComputations - 1] ) / std::abs( solution_l2_norm[nbComputations - 1] );
-      std::cout << "error = " << error[i] << std::endl;
-  }
+        solution_l2_norm[i] = l2norm;
+        nbTimeSteps[i] = wave_equation_solver.timestep_number;
+    }
 
-  std::vector<double> order( nbComputations - 2 );
+    std::vector<double> error( nbComputations - 1 );
 
-  for ( unsigned int i = 0; i < order.size(); ++i )
-  {
-      double dti = time_step / std::pow( 2, i );
-      double dtinew = time_step / std::pow( 2, i + 1 );
-      order[i] = std::log10( error[i + 1] ) - std::log10( error[i] );
-      order[i] /= std::log10( dtinew ) - std::log10( dti );
+    for ( unsigned int i = 0; i < error.size(); ++i )
+    {
+        error[i] = std::abs( solution_l2_norm[i] - solution_l2_norm[nbComputations - 1] ) / std::abs( solution_l2_norm[nbComputations - 1] );
+        std::cout << "error = " << error[i] << std::endl;
+    }
 
-      std::cout << "order = " << order[i] << std::endl;
+    std::vector<double> order( nbComputations - 2 );
 
-      BOOST_CHECK_GE( order[i], 1 );
-  }
+    for ( unsigned int i = 0; i < order.size(); ++i )
+    {
+        double dti = time_step / std::pow( 2, i );
+        double dtinew = time_step / std::pow( 2, i + 1 );
+        order[i] = std::log10( error[i + 1] ) - std::log10( error[i] );
+        order[i] /= std::log10( dtinew ) - std::log10( dti );
 
+        std::cout << "order = " << order[i] << std::endl;
+
+        BOOST_CHECK_GE( order[i], 1 );
+    }
 }
 
 BOOST_AUTO_TEST_CASE( theta )
 {
-  using namespace dealii;
-  using namespace Step23;
+    using namespace dealii;
+    using namespace Step23;
 
-  deallog.depth_console (0);
+    deallog.depth_console( 0 );
 
-  double time_step = 2.5e-3;
-  double theta = 0.6;
-  unsigned int degree = 1;
-  unsigned int n_global_refines = 2;
-  double gravity = 2;
-  double distributed_load = 0;
+    double time_step = 2.5e-3;
+    double theta = 0.6;
+    unsigned int degree = 1;
+    unsigned int n_global_refines = 2;
+    double gravity = 2;
+    double distributed_load = 0;
 
-  unsigned int nbComputations = 4;
+    unsigned int nbComputations = 4;
 
-  std::vector<unsigned int> nbTimeSteps( nbComputations );
-  std::vector<double> solution_l2_norm( nbComputations );
+    std::vector<unsigned int> nbTimeSteps( nbComputations );
+    std::vector<double> solution_l2_norm( nbComputations );
 
-  for ( unsigned int i = 0; i < nbComputations; ++i )
-  {
-      double dt = time_step / std::pow( 2, i );
+    for ( unsigned int i = 0; i < nbComputations; ++i )
+    {
+        double dt = time_step / std::pow( 2, i );
 
-      WaveEquation<2> wave_equation_solver ( dt, theta, degree, gravity, distributed_load, n_global_refines );
-      wave_equation_solver.run ();
+        WaveEquation<2> wave_equation_solver( dt, theta, degree, gravity, distributed_load, n_global_refines );
+        wave_equation_solver.run();
 
-      if ( i > 0 )
-          assert( nbTimeSteps[i - 1] * 2 == wave_equation_solver.timestep_number );
+        if ( i > 0 )
+            assert( nbTimeSteps[i - 1] * 2 == wave_equation_solver.timestep_number );
 
-      double l2norm = 0;
-      for ( unsigned int i = 0; i < wave_equation_solver.solution_v.size(); ++i )
-        l2norm += wave_equation_solver.solution_v[i] * wave_equation_solver.solution_v[i];
-      l2norm = std::sqrt( l2norm );
+        double l2norm = 0;
 
-      solution_l2_norm[i] = l2norm;
-      nbTimeSteps[i] = wave_equation_solver.timestep_number;
-  }
+        for ( unsigned int i = 0; i < wave_equation_solver.solution_v.size(); ++i )
+            l2norm += wave_equation_solver.solution_v[i] * wave_equation_solver.solution_v[i];
 
-  std::vector<double> error( nbComputations - 1 );
+        l2norm = std::sqrt( l2norm );
 
-  for ( unsigned int i = 0; i < error.size(); ++i )
-      error[i] = std::abs( solution_l2_norm[i] - solution_l2_norm[nbComputations - 1] ) / std::abs( solution_l2_norm[nbComputations - 1] );
+        solution_l2_norm[i] = l2norm;
+        nbTimeSteps[i] = wave_equation_solver.timestep_number;
+    }
 
-  std::vector<double> order( nbComputations - 2 );
+    std::vector<double> error( nbComputations - 1 );
 
-  for ( unsigned int i = 0; i < order.size(); ++i )
-  {
-      double dti = time_step / std::pow( 2, i );
-      double dtinew = time_step / std::pow( 2, i + 1 );
-      order[i] = std::log10( error[i + 1] ) - std::log10( error[i] );
-      order[i] /= std::log10( dtinew ) - std::log10( dti );
+    for ( unsigned int i = 0; i < error.size(); ++i )
+        error[i] = std::abs( solution_l2_norm[i] - solution_l2_norm[nbComputations - 1] ) / std::abs( solution_l2_norm[nbComputations - 1] );
 
-      BOOST_CHECK_GE( order[i], 1 );
-  }
+    std::vector<double> order( nbComputations - 2 );
 
+    for ( unsigned int i = 0; i < order.size(); ++i )
+    {
+        double dti = time_step / std::pow( 2, i );
+        double dtinew = time_step / std::pow( 2, i + 1 );
+        order[i] = std::log10( error[i + 1] ) - std::log10( error[i] );
+        order[i] /= std::log10( dtinew ) - std::log10( dti );
+
+        BOOST_CHECK_GE( order[i], 1 );
+    }
 }
