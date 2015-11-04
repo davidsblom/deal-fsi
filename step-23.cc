@@ -91,16 +91,6 @@
 #define BOOST_TEST_MODULE SolidMechanicsTest
 #include <boost/test/included/unit_test.hpp>
 
-// The last step is as in all previous programs:
-namespace Step23
-{
-  using namespace dealii;
-
-
-  
-}
-
-
 // @sect3{The <code>main</code> function}
 
 // What remains is the main function of the program. There is nothing here
