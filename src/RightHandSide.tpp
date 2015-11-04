@@ -12,9 +12,9 @@
 // but we try to be consistent in this direction.
 template <int dim>
 RightHandSide<dim>::RightHandSide ( double gravity )
-  :
-  Function<dim> (dim),
-  gravity( gravity )
+    :
+    Function<dim> ( dim ),
+    gravity( gravity )
 {}
 
 
@@ -42,58 +42,58 @@ RightHandSide<dim>::RightHandSide ( double gravity )
 // just fine in 3d, however.
 template <int dim>
 inline
-void RightHandSide<dim>::vector_value (const Point<dim> &,
-                                       Vector<double>   &values) const
+void RightHandSide<dim>::vector_value(
+    const Point<dim> &,
+    Vector<double> & values
+    ) const
 {
-  Assert (values.size() == dim,
-          ExcDimensionMismatch (values.size(), dim));
-  Assert (dim >= 2, ExcNotImplemented());
+    Assert( values.size() == dim,
+        ExcDimensionMismatch( values.size(), dim ) );
+    Assert( dim >= 2, ExcNotImplemented() );
 
-  // The rest of the function implements computing force values. We will use
-  // a constant (unit) force in x-direction located in two little circles
-  // (or spheres, in 3d) around points (0.5,0) and (-0.5,0), and y-force in
-  // an area around the origin; in 3d, the z-component of these centers is
-  // zero as well.
-  //
-  // For this, let us first define two objects that denote the centers of
-  // these areas. Note that upon construction of the <code>Point</code>
-  // objects, all components are set to zero.
-  // Point<dim> point_1, point_2;
-  // point_1(0) = 0.5;
-  // point_2(0) = -0.5;
-  //
-  // // If now the point <code>p</code> is in a circle (sphere) of radius 0.2
-  // // around one of these points, then set the force in x-direction to one,
-  // // otherwise to zero:
-  // if (((p-point_1).norm_square() < 0.2*0.2) ||
-  //     ((p-point_2).norm_square() < 0.2*0.2))
-  //   values(0) = 1;
-  // else
-  //   values(0) = 0;
-  //
-  // // Likewise, if <code>p</code> is in the vicinity of the origin, then set
-  // // the y-force to 1, otherwise to zero:
-  // if (p.norm_square() < 0.2*0.2)
-  //   values(1) = 1;
-  // else
-  //   values(1) = 0;
+    // The rest of the function implements computing force values. We will use
+    // a constant (unit) force in x-direction located in two little circles
+    // (or spheres, in 3d) around points (0.5,0) and (-0.5,0), and y-force in
+    // an area around the origin; in 3d, the z-component of these centers is
+    // zero as well.
+    //
+    // For this, let us first define two objects that denote the centers of
+    // these areas. Note that upon construction of the <code>Point</code>
+    // objects, all components are set to zero.
+    // Point<dim> point_1, point_2;
+    // point_1(0) = 0.5;
+    // point_2(0) = -0.5;
+    //
+    // // If now the point <code>p</code> is in a circle (sphere) of radius 0.2
+    // // around one of these points, then set the force in x-direction to one,
+    // // otherwise to zero:
+    // if (((p-point_1).norm_square() < 0.2*0.2) ||
+    // ((p-point_2).norm_square() < 0.2*0.2))
+    // values(0) = 1;
+    // else
+    // values(0) = 0;
+    //
+    // // Likewise, if <code>p</code> is in the vicinity of the origin, then set
+    // // the y-force to 1, otherwise to zero:
+    // if (p.norm_square() < 0.2*0.2)
+    // values(1) = 1;
+    // else
+    // values(1) = 0;
 
-  double rho = 1000;
-  values( 0 ) = 0;
-  values( 1 ) = -gravity * rho;
+    double rho = 1000;
+    values( 0 ) = 0;
+    values( 1 ) = -gravity * rho;
 
-  double t = this->get_time();
-  double T = 0.01;
-  double offset = 0.01;
+    double t = this->get_time();
+    double T = 0.01;
+    double offset = 0.01;
 
-  if ( t - offset < T )
-      values( 1 ) *= 0.5 - 0.5 * std::cos( M_PI * (t - offset) / T );
+    if ( t - offset < T )
+        values( 1 ) *= 0.5 - 0.5 * std::cos( M_PI * (t - offset) / T );
 
-  if ( t < offset )
-      values( 1 ) = 0.0;
+    if ( t < offset )
+        values( 1 ) = 0.0;
 }
-
-
 
 // Now, this is the function of the right hand side class that returns the
 // values at several points at once. The function starts out with checking
@@ -102,49 +102,51 @@ void RightHandSide<dim>::vector_value (const Point<dim> &,
 // further down below). Next, we define an abbreviation for the number of
 // points which we shall work on, to make some things simpler below.
 template <int dim>
-void RightHandSide<dim>::vector_value_list (const std::vector<Point<dim> > &points,
-                                            std::vector<Vector<double> >   &value_list) const
+void RightHandSide<dim>::vector_value_list(
+    const std::vector<Point<dim> > & points,
+    std::vector<Vector<double> > & value_list
+    ) const
 {
-  Assert (value_list.size() == points.size(),
-          ExcDimensionMismatch (value_list.size(), points.size()));
+    Assert( value_list.size() == points.size(),
+        ExcDimensionMismatch( value_list.size(), points.size() ) );
 
-  const unsigned int n_points = points.size();
+    const unsigned int n_points = points.size();
 
-  // Finally we treat each of the points. In one of the previous examples,
-  // we have explained why the
-  // <code>value_list</code>/<code>vector_value_list</code> function had
-  // been introduced: to prevent us from calling virtual functions too
-  // frequently. On the other hand, we now need to implement the same
-  // function twice, which can lead to confusion if one function is changed
-  // but the other is not.
-  //
-  // We can prevent this situation by calling
-  // <code>RightHandSide::vector_value</code> on each point in the input
-  // list. Note that by giving the full name of the function, including the
-  // class name, we instruct the compiler to explicitly call this function,
-  // and not to use the virtual function call mechanism that would be used
-  // if we had just called <code>vector_value</code>. This is important,
-  // since the compiler generally can't make any assumptions which function
-  // is called when using virtual functions, and it therefore can't inline
-  // the called function into the site of the call. On the contrary, here we
-  // give the fully qualified name, which bypasses the virtual function
-  // call, and consequently the compiler knows exactly which function is
-  // called and will inline above function into the present location. (Note
-  // that we have declared the <code>vector_value</code> function above
-  // <code>inline</code>, though modern compilers are also able to inline
-  // functions even if they have not been declared as inline).
-  //
-  // It is worth noting why we go to such length explaining what we
-  // do. Using this construct, we manage to avoid any inconsistency: if we
-  // want to change the right hand side function, it would be difficult to
-  // always remember that we always have to change two functions in the same
-  // way. Using this forwarding mechanism, we only have to change a single
-  // place (the <code>vector_value</code> function), and the second place
-  // (the <code>vector_value_list</code> function) will always be consistent
-  // with it. At the same time, using virtual function call bypassing, the
-  // code is no less efficient than if we had written it twice in the first
-  // place:
-  for (unsigned int p=0; p<n_points; ++p)
-    RightHandSide<dim>::vector_value (points[p],
-                                      value_list[p]);
+    // Finally we treat each of the points. In one of the previous examples,
+    // we have explained why the
+    // <code>value_list</code>/<code>vector_value_list</code> function had
+    // been introduced: to prevent us from calling virtual functions too
+    // frequently. On the other hand, we now need to implement the same
+    // function twice, which can lead to confusion if one function is changed
+    // but the other is not.
+    //
+    // We can prevent this situation by calling
+    // <code>RightHandSide::vector_value</code> on each point in the input
+    // list. Note that by giving the full name of the function, including the
+    // class name, we instruct the compiler to explicitly call this function,
+    // and not to use the virtual function call mechanism that would be used
+    // if we had just called <code>vector_value</code>. This is important,
+    // since the compiler generally can't make any assumptions which function
+    // is called when using virtual functions, and it therefore can't inline
+    // the called function into the site of the call. On the contrary, here we
+    // give the fully qualified name, which bypasses the virtual function
+    // call, and consequently the compiler knows exactly which function is
+    // called and will inline above function into the present location. (Note
+    // that we have declared the <code>vector_value</code> function above
+    // <code>inline</code>, though modern compilers are also able to inline
+    // functions even if they have not been declared as inline).
+    //
+    // It is worth noting why we go to such length explaining what we
+    // do. Using this construct, we manage to avoid any inconsistency: if we
+    // want to change the right hand side function, it would be difficult to
+    // always remember that we always have to change two functions in the same
+    // way. Using this forwarding mechanism, we only have to change a single
+    // place (the <code>vector_value</code> function), and the second place
+    // (the <code>vector_value_list</code> function) will always be consistent
+    // with it. At the same time, using virtual function call bypassing, the
+    // code is no less efficient than if we had written it twice in the first
+    // place:
+    for ( unsigned int p = 0; p < n_points; ++p )
+        RightHandSide<dim>::vector_value( points[p],
+            value_list[p] );
 }

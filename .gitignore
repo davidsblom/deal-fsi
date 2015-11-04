@@ -3,3 +3,7 @@ CMakeCache.txt
 CMakeFiles
 Makefile
 step-23
+formatCode
+uncrustify.cfg
+boost
+boost_1_55_0
