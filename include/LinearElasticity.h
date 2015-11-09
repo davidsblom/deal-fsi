@@ -27,6 +27,7 @@ public:
             double degree,
             double gravity,
             double distributed_load,
+            double rho,
             unsigned int n_global_refines
             );
 
@@ -88,7 +89,7 @@ public:
 private:
 
         bool init;
-        double initial_time;
+        double initial_time, rho;
     };
 
     #include "../src/LinearElasticity.tpp"

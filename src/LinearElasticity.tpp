@@ -11,6 +11,7 @@ LinearElasticity<dim>::LinearElasticity (
     double degree,
     double gravity,
     double distributed_load,
+    double rho,
     unsigned int n_global_refines
     ) :
     deg( degree ),
@@ -22,11 +23,13 @@ LinearElasticity<dim>::LinearElasticity (
     gravity( gravity ),
     distributed_load( distributed_load ),
     init( false ),
-    initial_time( 0 )
+    initial_time( 0 ),
+    rho( rho )
 {
     assert( degree >= 1 );
     assert( time_step > 0 );
     assert( theta >= 0 && theta <= 1 );
+    assert( rho > 0 );
 }
 
 template <int dim>
@@ -349,8 +352,6 @@ void LinearElasticity<dim>::run()
 template <int dim>
 void LinearElasticity<dim>::solve()
 {
-    double rho = 1000.0;
-
     Vector<double> tmp( solution_u.size() );
     Vector<double> forcing_terms( solution_u.size() );
 
