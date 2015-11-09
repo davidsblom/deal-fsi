@@ -16,7 +16,8 @@ LinearElasticity<dim>::LinearElasticity (
     theta( theta ),
     gravity( gravity ),
     distributed_load( distributed_load ),
-    init( false )
+    init( false ),
+    initial_time( 0 )
 {
     assert( degree >= 1 );
     assert( time_step > 0 );
@@ -238,6 +239,8 @@ void LinearElasticity<dim>::finalizeTimeStep()
 template <int dim>
 bool LinearElasticity<dim>::isRunning()
 {
+    double final_time = 0.05;
+
     return time <= final_time;
 }
 
@@ -316,13 +319,7 @@ void LinearElasticity<dim>::run()
 {
     setup_system();
 
-    Vector<double> tmp( solution_u.size() );
-    Vector<double> forcing_terms( solution_u.size() );
-
-    double initial_time = 0;
-    double final_time = 0.05;
-
-    double rho = 1000.0;
+    initial_time = 0;
 
     timestep_number = 0;
 
@@ -347,6 +344,11 @@ void LinearElasticity<dim>::run()
 template <int dim>
 void LinearElasticity<dim>::solve()
 {
+    double rho = 1000.0;
+
+    Vector<double> tmp( solution_u.size() );
+    Vector<double> forcing_terms( solution_u.size() );
+
     assemble_system();
 
     // mass_matrix.vmult (system_rhs, old_solution_u);

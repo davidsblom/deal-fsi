@@ -41,7 +41,7 @@ public:
 
         void initTimeStep();
 
-        void isRunning();
+        bool isRunning();
 
         void output_results() const;
 
@@ -88,6 +88,7 @@ public:
 private:
 
         bool init;
+        double initial_time;
     };
 
     #include "../src/LinearElasticity.tpp"
