@@ -1,11 +1,18 @@
 
+/*
+ * Author
+ *   David Blom, TU Delft. All rights reserved.
+ */
+
 template <int dim>
 LinearElasticity<dim>::LinearElasticity (
     double time_step,
+    double final_time,
     double theta,
     double degree,
     double gravity,
     double distributed_load,
+    double rho,
     unsigned int n_global_refines
     ) :
     deg( degree ),
@@ -17,11 +24,15 @@ LinearElasticity<dim>::LinearElasticity (
     gravity( gravity ),
     distributed_load( distributed_load ),
     init( false ),
-    initial_time( 0 )
+    initial_time( 0 ),
+    final_time( final_time ),
+    rho( rho )
 {
     assert( degree >= 1 );
     assert( time_step > 0 );
     assert( theta >= 0 && theta <= 1 );
+    assert( rho > 0 );
+    assert( final_time > initial_time );
 }
 
 template <int dim>
@@ -239,8 +250,6 @@ void LinearElasticity<dim>::finalizeTimeStep()
 template <int dim>
 bool LinearElasticity<dim>::isRunning()
 {
-    double final_time = 0.05;
-
     return time <= final_time;
 }
 
@@ -344,8 +353,6 @@ void LinearElasticity<dim>::run()
 template <int dim>
 void LinearElasticity<dim>::solve()
 {
-    double rho = 1000.0;
-
     Vector<double> tmp( solution_u.size() );
     Vector<double> forcing_terms( solution_u.size() );
 
