@@ -29,15 +29,27 @@ public:
             double distributed_load,
             unsigned int n_global_refines
             );
-        void run();
 
         void assemble_system();
 
         void finalizeTimeStep();
 
+        double get_traction(
+            const unsigned int component_i,
+            const unsigned int
+            );
+
         void initTimeStep();
 
         void isRunning();
+
+        void output_results() const;
+
+        unsigned int n_dofs() const;
+
+        double point_value() const;
+
+        void run();
 
         void setup_system();
 
@@ -46,17 +58,6 @@ public:
         void solve_u();
 
         void solve_v();
-
-        void output_results() const;
-
-        unsigned int n_dofs() const;
-
-        double point_value() const;
-
-        double get_traction(
-            const unsigned int component_i,
-            const unsigned int
-            );
 
         unsigned int deg;
         unsigned int n_global_refines;
