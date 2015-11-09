@@ -65,6 +65,8 @@ public:
 
         void setup_system();
 
+        void solve();
+
         void solve_u();
 
         void solve_v();

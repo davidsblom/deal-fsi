@@ -502,110 +502,116 @@ void LinearElasticity<dim>::run()
     {
         initTimeStep();
 
-        assemble_system();
-
-        // mass_matrix.vmult (system_rhs, old_solution_u);
-        system_rhs = mass_matrix * old_solution_u;
-
-        // mass_matrix.vmult (tmp, old_solution_v);
-        tmp = mass_matrix * old_solution_v;
-        system_rhs.add( time_step, tmp );
-
-        // laplace_matrix.vmult (tmp, old_solution_u);
-        tmp = laplace_matrix * old_solution_u;
-        system_rhs.add( -theta * (1 - theta) * time_step * time_step / rho, tmp );
-
-        RightHandSide<dim> rhs_function( gravity );
-        rhs_function.set_time( time );
-        VectorTools::create_right_hand_side( dof_handler, QGauss<dim>( 2 ),
-            rhs_function, tmp );
-        tmp += body_force;
-        forcing_terms = tmp;
-        forcing_terms *= theta * time_step;
-
-        rhs_function.set_time( time - time_step );
-        VectorTools::create_right_hand_side( dof_handler, QGauss<dim>( 2 ),
-            rhs_function, tmp );
-
-        tmp += old_body_force;
-        forcing_terms.add( (1 - theta) * time_step, tmp );
-        forcing_terms *= 1.0 / rho;
-
-        system_rhs.add( theta * time_step, forcing_terms );
-
-        // After so constructing the right hand side vector of the first
-        // equation, all we have to do is apply the correct boundary
-        // values. As for the right hand side, this is a space-time function
-        // evaluated at a particular time, which we interpolate at boundary
-        // nodes and then use the result to apply boundary values as we
-        // usually do. The result is then handed off to the solve_u()
-        // function:
-        {
-            std::map<types::global_dof_index, double> boundary_values;
-            VectorTools::interpolate_boundary_values( dof_handler,
-                0,
-                ZeroFunction<dim>( dim ),
-                boundary_values );
-
-
-            // The matrix for solve_u() is the same in every time steps, so one
-            // could think that it is enough to do this only once at the
-            // beginning of the simulation. However, since we need to apply
-            // boundary values to the linear system (which eliminate some matrix
-            // rows and columns and give contributions to the right hand side),
-            // we have to refill the matrix in every time steps before we
-            // actually apply boundary data. The actual content is very simple:
-            // it is the sum of the mass matrix and a weighted Laplace matrix:
-            matrix_u.copy_from( mass_matrix );
-            matrix_u.add( theta * theta * time_step * time_step / rho, laplace_matrix );
-            MatrixTools::apply_boundary_values( boundary_values,
-                matrix_u,
-                solution_u,
-                system_rhs );
-        }
-        solve_u();
-
-
-        // The second step, i.e. solving for $V^n$, works similarly, except
-        // that this time the matrix on the left is the mass matrix (which we
-        // copy again in order to be able to apply boundary conditions, and
-        // the right hand side is $MV^{n-1} - k\left[ \theta A U^n +
-        // (1-\theta) AU^{n-1}\right]$ plus forcing terms. %Boundary values
-        // are applied in the same way as before, except that now we have to
-        // use the BoundaryValuesV class:
-        // laplace_matrix.vmult (system_rhs, solution_u);
-        system_rhs = laplace_matrix * solution_u;
-        system_rhs *= -theta * time_step / rho;
-
-        // mass_matrix.vmult (tmp, old_solution_v);
-        tmp = mass_matrix * old_solution_v;
-        system_rhs += tmp;
-
-        // laplace_matrix.vmult (tmp, old_solution_u);
-        tmp = laplace_matrix * old_solution_u;
-        system_rhs.add( -time_step * (1 - theta) / rho, tmp );
-
-        system_rhs += forcing_terms;
-
-        {
-            std::map<types::global_dof_index, double> boundary_values;
-            VectorTools::interpolate_boundary_values( dof_handler,
-                0,
-                ZeroFunction<dim>( dim ),
-                boundary_values );
-            matrix_v.copy_from( mass_matrix );
-            MatrixTools::apply_boundary_values( boundary_values,
-                matrix_v,
-                solution_v,
-                system_rhs );
-        }
-        solve_v();
+        solve();
 
         finalizeTimeStep();
     }
 
     timestep_number--;
     time = initial_time + timestep_number * time_step;
+}
+
+template <int dim>
+void LinearElasticity<dim>::solve()
+{
+    assemble_system();
+
+    // mass_matrix.vmult (system_rhs, old_solution_u);
+    system_rhs = mass_matrix * old_solution_u;
+
+    // mass_matrix.vmult (tmp, old_solution_v);
+    tmp = mass_matrix * old_solution_v;
+    system_rhs.add( time_step, tmp );
+
+    // laplace_matrix.vmult (tmp, old_solution_u);
+    tmp = laplace_matrix * old_solution_u;
+    system_rhs.add( -theta * (1 - theta) * time_step * time_step / rho, tmp );
+
+    RightHandSide<dim> rhs_function( gravity );
+    rhs_function.set_time( time );
+    VectorTools::create_right_hand_side( dof_handler, QGauss<dim>( 2 ),
+        rhs_function, tmp );
+    tmp += body_force;
+    forcing_terms = tmp;
+    forcing_terms *= theta * time_step;
+
+    rhs_function.set_time( time - time_step );
+    VectorTools::create_right_hand_side( dof_handler, QGauss<dim>( 2 ),
+        rhs_function, tmp );
+
+    tmp += old_body_force;
+    forcing_terms.add( (1 - theta) * time_step, tmp );
+    forcing_terms *= 1.0 / rho;
+
+    system_rhs.add( theta * time_step, forcing_terms );
+
+    // After so constructing the right hand side vector of the first
+    // equation, all we have to do is apply the correct boundary
+    // values. As for the right hand side, this is a space-time function
+    // evaluated at a particular time, which we interpolate at boundary
+    // nodes and then use the result to apply boundary values as we
+    // usually do. The result is then handed off to the solve_u()
+    // function:
+    {
+        std::map<types::global_dof_index, double> boundary_values;
+        VectorTools::interpolate_boundary_values( dof_handler,
+            0,
+            ZeroFunction<dim>( dim ),
+            boundary_values );
+
+
+        // The matrix for solve_u() is the same in every time steps, so one
+        // could think that it is enough to do this only once at the
+        // beginning of the simulation. However, since we need to apply
+        // boundary values to the linear system (which eliminate some matrix
+        // rows and columns and give contributions to the right hand side),
+        // we have to refill the matrix in every time steps before we
+        // actually apply boundary data. The actual content is very simple:
+        // it is the sum of the mass matrix and a weighted Laplace matrix:
+        matrix_u.copy_from( mass_matrix );
+        matrix_u.add( theta * theta * time_step * time_step / rho, laplace_matrix );
+        MatrixTools::apply_boundary_values( boundary_values,
+            matrix_u,
+            solution_u,
+            system_rhs );
+    }
+    solve_u();
+
+
+    // The second step, i.e. solving for $V^n$, works similarly, except
+    // that this time the matrix on the left is the mass matrix (which we
+    // copy again in order to be able to apply boundary conditions, and
+    // the right hand side is $MV^{n-1} - k\left[ \theta A U^n +
+    // (1-\theta) AU^{n-1}\right]$ plus forcing terms. %Boundary values
+    // are applied in the same way as before, except that now we have to
+    // use the BoundaryValuesV class:
+    // laplace_matrix.vmult (system_rhs, solution_u);
+    system_rhs = laplace_matrix * solution_u;
+    system_rhs *= -theta * time_step / rho;
+
+    // mass_matrix.vmult (tmp, old_solution_v);
+    tmp = mass_matrix * old_solution_v;
+    system_rhs += tmp;
+
+    // laplace_matrix.vmult (tmp, old_solution_u);
+    tmp = laplace_matrix * old_solution_u;
+    system_rhs.add( -time_step * (1 - theta) / rho, tmp );
+
+    system_rhs += forcing_terms;
+
+    {
+        std::map<types::global_dof_index, double> boundary_values;
+        VectorTools::interpolate_boundary_values( dof_handler,
+            0,
+            ZeroFunction<dim>( dim ),
+            boundary_values );
+        matrix_v.copy_from( mass_matrix );
+        MatrixTools::apply_boundary_values( boundary_values,
+            matrix_v,
+            solution_v,
+            system_rhs );
+    }
+    solve_v();
 }
 
 template <int dim>
