@@ -1,16 +1,4 @@
 
-// @sect3{Implementation of the <code>LinearElasticity</code> class}
-
-// The implementation of the actual logic is actually fairly short, since we
-// relegate things like assembling the matrices and right hand side vectors
-// to the library. The rest boils down to not much more than 130 lines of
-// actual code, a significant fraction of which is boilerplate code that can
-// be taken from previous example programs (e.g. the functions that solve
-// linear systems, or that generate output).
-//
-// Let's start with the constructor (for an explanation of the choice of
-// time step, see the section on Courant, Friedrichs, and Lewy in the
-// introduction):
 template <int dim>
 LinearElasticity<dim>::LinearElasticity (
     double time_step,
@@ -35,12 +23,6 @@ LinearElasticity<dim>::LinearElasticity (
     assert( theta >= 0 && theta <= 1 );
 }
 
-// @sect4{LinearElasticity::setup_system}
-
-// The next function is the one that sets up the mesh, DoFHandler, and
-// matrices and vectors at the beginning of the program, i.e. before the
-// first time step. The first few lines are pretty much standard if you've
-// read through the tutorial programs at least up to step-6:
 template <int dim>
 void LinearElasticity<dim>::setup_system()
 {
@@ -78,29 +60,6 @@ void LinearElasticity<dim>::setup_system()
     DoFTools::make_sparsity_pattern( dof_handler, dsp );
     sparsity_pattern.copy_from( dsp );
 
-    // Then comes a block where we have to initialize the 3 matrices we need
-    // in the course of the program: the mass matrix, the Laplace matrix, and
-    // the matrix $M+k^2\theta^2A$ used when solving for $U^n$ in each time
-    // step.
-    //
-    // When setting up these matrices, note that they all make use of the same
-    // sparsity pattern object. Finally, the reason why matrices and sparsity
-    // patterns are separate objects in deal.II (unlike in many other finite
-    // element or linear algebra classes) becomes clear: in a significant
-    // fraction of applications, one has to hold several matrices that happen
-    // to have the same sparsity pattern, and there is no reason for them not
-    // to share this information, rather than re-building and wasting memory
-    // on it several times.
-    //
-    // After initializing all of these matrices, we call library functions
-    // that build the Laplace and mass matrices. All they need is a DoFHandler
-    // object and a quadrature formula object that is to be used for numerical
-    // integration. Note that in many respects these functions are better than
-    // what we would usually do in application programs, for example because
-    // they automatically parallelize building the matrices if multiple
-    // processors are available in a machine. The matrices for solving linear
-    // systems will be filled in the run() method because we need to re-apply
-    // boundary conditions every time step.
     mass_matrix.reinit( sparsity_pattern );
     laplace_matrix.reinit( sparsity_pattern );
     matrix_u.reinit( sparsity_pattern );
@@ -109,16 +68,6 @@ void LinearElasticity<dim>::setup_system()
     MatrixCreator::create_mass_matrix( dof_handler, QGauss<dim>( 3 ),
         mass_matrix );
 
-    // MatrixCreator::create_laplace_matrix (dof_handler, QGauss<dim>(3),
-    // laplace_matrix);
-
-
-    // The rest of the function is spent on setting vector sizes to the
-    // correct value. The final line closes the hanging node constraints
-    // object. Since we work on a uniformly refined mesh, no constraints exist
-    // or have been computed (i.e. there was no need to call
-    // DoFTools::make_hanging_node_constraints as in other programs), but we
-    // need a constraints object in one place further down below anyway.
     solution_u.reinit( dof_handler.n_dofs() );
     solution_v.reinit( dof_handler.n_dofs() );
     old_solution_u.reinit( dof_handler.n_dofs() );
@@ -157,20 +106,8 @@ void LinearElasticity<dim>::assemble_system()
 
     unsigned int dofs_per_face = fe.n_dofs_per_face();
 
-    // As was shown in previous examples as well, we need a place where to
-    // store the values of the coefficients at all the quadrature points on a
-    // cell. In the present situation, we have two coefficients, lambda and
-    // mu.
     std::vector<double>     lambda_values( n_q_points );
     std::vector<double>     mu_values( n_q_points );
-
-    // Well, we could as well have omitted the above two arrays since we will
-    // use constant coefficients for both lambda and mu, which can be declared
-    // like this. They both represent functions always returning the constant
-    // value 1.0. Although we could omit the respective factors in the
-    // assemblage of the matrix, we use them here for purpose of
-    // demonstration.
-    // ConstantFunction<dim> lambda(1.), mu(1.);
 
     double nu = 0.4;
     double E = 1.4e6;
@@ -190,33 +127,9 @@ void LinearElasticity<dim>::assemble_system()
 
         fe_values.reinit( cell );
 
-        // Next we get the values of the coefficients at the quadrature
-        // points. Likewise for the right hand side:
         lambda.value_list( fe_values.get_quadrature_points(), lambda_values );
         mu.value_list( fe_values.get_quadrature_points(), mu_values );
 
-        // Then assemble the entries of the local stiffness matrix and right
-        // hand side vector. This follows almost one-to-one the pattern
-        // described in the introduction of this example.  One of the few
-        // comments in place is that we can compute the number
-        // <code>comp(i)</code>, i.e. the index of the only nonzero vector
-        // component of shape function <code>i</code> using the
-        // <code>fe.system_to_component_index(i).first</code> function call
-        // below.
-        //
-        // (By accessing the <code>first</code> variable of the return value
-        // of the <code>system_to_component_index</code> function, you might
-        // already have guessed that there is more in it. In fact, the
-        // function returns a <code>std::pair@<unsigned int, unsigned
-        // int@></code>, of which the first element is <code>comp(i)</code>
-        // and the second is the value <code>base(i)</code> also noted in the
-        // introduction, i.e.  the index of this shape function within all the
-        // shape functions that are nonzero in this component,
-        // i.e. <code>base(i)</code> in the diction of the introduction. This
-        // is not a number that we are usually interested in, however.)
-        //
-        // With this knowledge, we can assemble the local matrix
-        // contributions:
         for ( unsigned int i = 0; i < dofs_per_cell; ++i )
         {
             const unsigned int
@@ -233,16 +146,6 @@ void LinearElasticity<dim>::assemble_system()
                     cell_matrix( i, j )
                         +=
 
-                        // The first term is (lambda d_i u_i, d_j v_j) + (mu d_i
-                        // u_j, d_j v_i).  Note that
-                        // <code>shape_grad(i,q_point)</code> returns the
-                        // gradient of the only nonzero component of the i-th
-                        // shape function at quadrature point q_point. The
-                        // component <code>comp(i)</code> of the gradient, which
-                        // is the derivative of this only nonzero vector
-                        // component of the i-th shape function with respect to
-                        // the comp(i)th coordinate is accessed by the appended
-                        // brackets.
                         (
                         (fe_values.shape_grad( i, q_point )[component_i] *
                             fe_values.shape_grad( j, q_point )[component_j] *
@@ -253,17 +156,6 @@ void LinearElasticity<dim>::assemble_system()
                             mu_values[q_point])
                         +
 
-                        // The second term is (mu nabla u_i, nabla v_j).  We
-                        // need not access a specific component of the
-                        // gradient, since we only have to compute the scalar
-                        // product of the two gradients, of which an
-                        // overloaded version of the operator* takes care, as
-                        // in previous examples.
-                        //
-                        // Note that by using the ?: operator, we only do this
-                        // if comp(i) equals comp(j), otherwise a zero is
-                        // added (which will be optimized away by the
-                        // compiler).
                         ( (component_i == component_j) ?
                             (fe_values.shape_grad( i, q_point ) *
                                 fe_values.shape_grad( j, q_point ) *
@@ -298,12 +190,6 @@ void LinearElasticity<dim>::assemble_system()
             }
         }
 
-        // The transfer from local degrees of freedom into the global matrix
-        // and right hand side vector does not depend on the equation under
-        // consideration, and is thus the same as in all previous
-        // examples. The same holds for the elimination of hanging nodes from
-        // the matrix and right hand side, once we are done with assembling
-        // the entire linear system:
         cell->get_dof_indices( local_dof_indices );
 
         for ( unsigned int i = 0; i < dofs_per_cell; ++i )
@@ -355,20 +241,6 @@ bool LinearElasticity<dim>::isRunning()
     return time <= final_time;
 }
 
-// @sect4{LinearElasticity::solve_u and LinearElasticity::solve_v}
-
-// The next two functions deal with solving the linear systems associated
-// with the equations for $U^n$ and $V^n$. Both are not particularly
-// interesting as they pretty much follow the scheme used in all the
-// previous tutorial programs.
-//
-// One can make little experiments with preconditioners for the two matrices
-// we have to invert. As it turns out, however, for the matrices at hand
-// here, using Jacobi or SSOR preconditioners reduces the number of
-// iterations necessary to solve the linear system slightly, but due to the
-// cost of applying the preconditioner it is no win in terms of run-time. It
-// is not much of a loss either, but let's keep it simple and just do
-// without:
 template <int dim>
 void LinearElasticity<dim>::solve_u()
 {
@@ -407,13 +279,6 @@ void LinearElasticity<dim>::solve_v()
               << std::endl;
 }
 
-// @sect4{LinearElasticity::output_results}
-
-// Likewise, the following function is pretty much what we've done
-// before. The only thing worth mentioning is how here we generate a string
-// representation of the time step number padded with leading zeros to 3
-// character length using the Utilities::int_to_string function's second
-// argument.
 template <int dim>
 void LinearElasticity<dim>::output_results() const
 {
@@ -446,43 +311,11 @@ void LinearElasticity<dim>::output_results() const
     data_out.write_vtk( output );
 }
 
-// @sect4{LinearElasticity::run}
-
-// The following is really the only interesting function of the program. It
-// contains the loop over all time steps, but before we get to that we have
-// to set up the grid, DoFHandler, and matrices. In addition, we have to
-// somehow get started with initial values. To this end, we use the
-// VectorTools::project function that takes an object that describes a
-// continuous function and computes the $L^2$ projection of this function
-// onto the finite element space described by the DoFHandler object. Can't
-// be any simpler than that:
 template <int dim>
 void LinearElasticity<dim>::run()
 {
     setup_system();
 
-    // The next thing is to loop over all the time steps until we reach the
-    // end time ($T=5$ in this case). In each time step, we first have to
-    // solve for $U^n$, using the equation $(M^n + k^2\theta^2 A^n)U^n =$
-    // $(M^{n,n-1} - k^2\theta(1-\theta) A^{n,n-1})U^{n-1} + kM^{n,n-1}V^{n-1}
-    // +$ $k\theta \left[k \theta F^n + k(1-\theta) F^{n-1} \right]$. Note
-    // that we use the same mesh for all time steps, so that $M^n=M^{n,n-1}=M$
-    // and $A^n=A^{n,n-1}=A$. What we therefore have to do first is to add up
-    // $MU^{n-1} - k^2\theta(1-\theta) AU^{n-1} + kMV^{n-1}$ and the forcing
-    // terms, and put the result into the <code>system_rhs</code> vector. (For
-    // these additions, we need a temporary vector that we declare before the
-    // loop to avoid repeated memory allocations in each time step.)
-    //
-    // The one thing to realize here is how we communicate the time variable
-    // to the object describing the right hand side: each object derived from
-    // the Function class has a time field that can be set using the
-    // Function::set_time and read by Function::get_time. In essence, using
-    // this mechanism, all functions of space and time are therefore
-    // considered functions of space evaluated at a particular time. This
-    // matches well what we typically need in finite element programs, where
-    // we almost always work on a single time step at a time, and where it
-    // never happens that, for example, one would like to evaluate a
-    // space-time function for all times at any given spatial location.
     Vector<double> tmp( solution_u.size() );
     Vector<double> forcing_terms( solution_u.size() );
 
@@ -545,13 +378,6 @@ void LinearElasticity<dim>::solve()
 
     system_rhs.add( theta * time_step, forcing_terms );
 
-    // After so constructing the right hand side vector of the first
-    // equation, all we have to do is apply the correct boundary
-    // values. As for the right hand side, this is a space-time function
-    // evaluated at a particular time, which we interpolate at boundary
-    // nodes and then use the result to apply boundary values as we
-    // usually do. The result is then handed off to the solve_u()
-    // function:
     {
         std::map<types::global_dof_index, double> boundary_values;
         VectorTools::interpolate_boundary_values( dof_handler,
@@ -559,15 +385,6 @@ void LinearElasticity<dim>::solve()
             ZeroFunction<dim>( dim ),
             boundary_values );
 
-
-        // The matrix for solve_u() is the same in every time steps, so one
-        // could think that it is enough to do this only once at the
-        // beginning of the simulation. However, since we need to apply
-        // boundary values to the linear system (which eliminate some matrix
-        // rows and columns and give contributions to the right hand side),
-        // we have to refill the matrix in every time steps before we
-        // actually apply boundary data. The actual content is very simple:
-        // it is the sum of the mass matrix and a weighted Laplace matrix:
         matrix_u.copy_from( mass_matrix );
         matrix_u.add( theta * theta * time_step * time_step / rho, laplace_matrix );
         MatrixTools::apply_boundary_values( boundary_values,
@@ -577,14 +394,6 @@ void LinearElasticity<dim>::solve()
     }
     solve_u();
 
-
-    // The second step, i.e. solving for $V^n$, works similarly, except
-    // that this time the matrix on the left is the mass matrix (which we
-    // copy again in order to be able to apply boundary conditions, and
-    // the right hand side is $MV^{n-1} - k\left[ \theta A U^n +
-    // (1-\theta) AU^{n-1}\right]$ plus forcing terms. %Boundary values
-    // are applied in the same way as before, except that now we have to
-    // use the BoundaryValuesV class:
     // laplace_matrix.vmult (system_rhs, solution_u);
     system_rhs = laplace_matrix * solution_u;
     system_rhs *= -theta * time_step / rho;
