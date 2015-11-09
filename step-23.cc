@@ -53,6 +53,7 @@ BOOST_AUTO_TEST_CASE( polynomial_degree_test )
     double gravity = 2;
     double distributed_load = 0;
     double rho = 1000;
+    double final_time = 0.05;
 
     unsigned int nbComputations = 4;
 
@@ -62,7 +63,7 @@ BOOST_AUTO_TEST_CASE( polynomial_degree_test )
     for ( unsigned int i = 0; i < nbComputations; ++i )
     {
         n_global_refines = i + 2;
-        LinearElasticity<2> wave_equation_solver( time_step, theta, degree, gravity, distributed_load, rho, n_global_refines );
+        LinearElasticity<2> wave_equation_solver( time_step, final_time, theta, degree, gravity, distributed_load, rho, n_global_refines );
         wave_equation_solver.run();
 
         n_dofs[i] = wave_equation_solver.n_dofs();
@@ -99,6 +100,7 @@ BOOST_AUTO_TEST_CASE( polynomial_degree_test_distributed_load )
     double gravity = 0;
     double distributed_load = 49.757;
     double rho = 1000;
+    double final_time = 0.05;
 
     unsigned int nbComputations = 4;
 
@@ -108,7 +110,7 @@ BOOST_AUTO_TEST_CASE( polynomial_degree_test_distributed_load )
     for ( unsigned int i = 0; i < nbComputations; ++i )
     {
         n_global_refines = i + 2;
-        LinearElasticity<2> wave_equation_solver( time_step, theta, degree, gravity, distributed_load, rho, n_global_refines );
+        LinearElasticity<2> wave_equation_solver( time_step, final_time, theta, degree, gravity, distributed_load, rho, n_global_refines );
         wave_equation_solver.run();
 
         n_dofs[i] = wave_equation_solver.n_dofs();
@@ -145,6 +147,7 @@ BOOST_AUTO_TEST_CASE( crank_nicolson_distributed_load )
     double gravity = 0;
     double distributed_load = 49.757;
     double rho = 1000;
+    double final_time = 0.05;
 
     unsigned int nbComputations = 4;
 
@@ -212,6 +215,7 @@ BOOST_AUTO_TEST_CASE( crank_nicolson_combined_load )
     double gravity = 2;
     double distributed_load = 49.757;
     double rho = 1000;
+    double final_time = 0.05;
 
     unsigned int nbComputations = 4;
 
@@ -279,6 +283,7 @@ BOOST_AUTO_TEST_CASE( crank_nicolson_test )
     double gravity = 2;
     double distributed_load = 0;
     double rho = 1000;
+    double final_time = 0.05;
 
     unsigned int nbComputations = 4;
 
@@ -346,6 +351,7 @@ BOOST_AUTO_TEST_CASE( backward_euler )
     double gravity = 2;
     double distributed_load = 0;
     double rho = 1000;
+    double final_time = 0.05;
 
     unsigned int nbComputations = 4;
 
@@ -410,6 +416,7 @@ BOOST_AUTO_TEST_CASE( theta )
     double gravity = 2;
     double distributed_load = 0;
     double rho = 1000;
+    double final_time = 0.05;
 
     unsigned int nbComputations = 4;
 

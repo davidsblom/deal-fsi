@@ -23,6 +23,7 @@ public:
 
         LinearElasticity(
             double time_step,
+            double final_time,
             double theta,
             double degree,
             double gravity,
@@ -89,7 +90,7 @@ public:
 private:
 
         bool init;
-        double initial_time, rho;
+        double initial_time, final_time, rho;
     };
 
     #include "../src/LinearElasticity.tpp"

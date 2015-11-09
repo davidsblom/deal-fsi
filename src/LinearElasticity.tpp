@@ -7,6 +7,7 @@
 template <int dim>
 LinearElasticity<dim>::LinearElasticity (
     double time_step,
+    double final_time,
     double theta,
     double degree,
     double gravity,
@@ -24,12 +25,14 @@ LinearElasticity<dim>::LinearElasticity (
     distributed_load( distributed_load ),
     init( false ),
     initial_time( 0 ),
+    final_time( final_time ),
     rho( rho )
 {
     assert( degree >= 1 );
     assert( time_step > 0 );
     assert( theta >= 0 && theta <= 1 );
     assert( rho > 0 );
+    assert( final_time > initial_time );
 }
 
 template <int dim>
@@ -247,8 +250,6 @@ void LinearElasticity<dim>::finalizeTimeStep()
 template <int dim>
 bool LinearElasticity<dim>::isRunning()
 {
-    double final_time = 0.05;
-
     return time <= final_time;
 }
 
