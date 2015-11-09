@@ -27,7 +27,8 @@ WaveEquation<dim>::WaveEquation (
     time_step( time_step ),
     theta( theta ),
     gravity( gravity ),
-    distributed_load( distributed_load )
+    distributed_load( distributed_load ),
+    init( false )
 {
     assert( degree >= 1 );
     assert( time_step > 0 );
@@ -319,6 +320,35 @@ void WaveEquation<dim>::assemble_system()
     constraints.condense( laplace_matrix );
 }
 
+template <int dim>
+void WaveEquation<dim>::initTimeStep()
+{
+    assert( !init );
+
+    std::cout << "Time step " << timestep_number
+              << " at t=" << time
+              << std::endl;
+
+    init = true;
+}
+
+template <int dim>
+void WaveEquation<dim>::finalizeTimeStep()
+{
+    assert( init );
+
+    output_results();
+
+    old_solution_u = solution_u;
+    old_solution_v = solution_v;
+    old_body_force = body_force;
+
+    timestep_number++;
+    time = initial_time + timestep_number * time_step;
+
+    init = false;
+}
+
 // @sect4{WaveEquation::solve_u and WaveEquation::solve_v}
 
 // The next two functions deal with solving the linear systems associated
@@ -464,12 +494,7 @@ void WaveEquation<dim>::run()
 
     while ( time <= final_time )
     {
-        // for (timestep_number=1, time=time_step;
-        // time<=0.5;
-        // time+=time_step, ++timestep_number)
-        std::cout << "Time step " << timestep_number
-                  << " at t=" << time
-                  << std::endl;
+        initTimeStep();
 
         assemble_system();
 
@@ -570,22 +595,7 @@ void WaveEquation<dim>::run()
         }
         solve_v();
 
-        // Finally, after both solution components have been computed, we
-        // output the result, compute the energy in the solution, and go on to
-        // the next time step after shifting the present solution into the
-        // vectors that hold the solution at the previous time step. Note the
-        // function SparseMatrix::matrix_norm_square that can compute
-        // $\left<V^n,MV^n\right>$ and $\left<U^n,AU^n\right>$ in one step,
-        // saving us the expense of a temporary vector and several lines of
-        // code:
-        output_results();
-
-        old_solution_u = solution_u;
-        old_solution_v = solution_v;
-        old_body_force = body_force;
-
-        timestep_number++;
-        time = initial_time + timestep_number * time_step;
+        finalizeTimeStep();
     }
 
     timestep_number--;

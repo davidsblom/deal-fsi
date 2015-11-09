@@ -57,6 +57,10 @@ public:
 
         void assemble_system();
 
+        void finalizeTimeStep();
+
+        void initTimeStep();
+
         void setup_system();
 
         void solve_u();
@@ -99,6 +103,10 @@ public:
         unsigned int timestep_number;
         const double theta;
         const double gravity, distributed_load;
+
+private:
+
+        bool init;
     };
 
     #include "../src/LinearElasticity.tpp"
