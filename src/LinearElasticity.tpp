@@ -349,6 +349,12 @@ void LinearElasticity<dim>::finalizeTimeStep()
     init = false;
 }
 
+template <int dim>
+bool LinearElasticity<dim>::isRunning()
+{
+    return time <= final_time;
+}
+
 // @sect4{LinearElasticity::solve_u and LinearElasticity::solve_v}
 
 // The next two functions deal with solving the linear systems associated

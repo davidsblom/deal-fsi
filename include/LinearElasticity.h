@@ -61,6 +61,8 @@ public:
 
         void initTimeStep();
 
+        void isRunning();
+
         void setup_system();
 
         void solve_u();
