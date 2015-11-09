@@ -41,11 +41,11 @@ namespace Step23
     // use, as explained in the introduction. The rest is self-explanatory.
 
     template <int dim>
-    class WaveEquation
+    class LinearElasticity
     {
 public:
 
-        WaveEquation (
+        WaveEquation(
             double time_step,
             double theta,
             double degree,

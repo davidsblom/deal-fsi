@@ -1,5 +1,5 @@
 
-// @sect3{Implementation of the <code>WaveEquation</code> class}
+// @sect3{Implementation of the <code>LinearElasticity</code> class}
 
 // The implementation of the actual logic is actually fairly short, since we
 // relegate things like assembling the matrices and right hand side vectors
@@ -12,7 +12,7 @@
 // time step, see the section on Courant, Friedrichs, and Lewy in the
 // introduction):
 template <int dim>
-WaveEquation<dim>::WaveEquation (
+LinearElasticity<dim>::LinearElasticity (
     double time_step,
     double theta,
     double degree,
@@ -35,14 +35,14 @@ WaveEquation<dim>::WaveEquation (
     assert( theta >= 0 && theta <= 1 );
 }
 
-// @sect4{WaveEquation::setup_system}
+// @sect4{LinearElasticity::setup_system}
 
 // The next function is the one that sets up the mesh, DoFHandler, and
 // matrices and vectors at the beginning of the program, i.e. before the
 // first time step. The first few lines are pretty much standard if you've
 // read through the tutorial programs at least up to step-6:
 template <int dim>
-void WaveEquation<dim>::setup_system()
+void LinearElasticity<dim>::setup_system()
 {
     // GridGenerator::hyper_cube (triangulation, -1, 1);
 
@@ -133,7 +133,7 @@ void WaveEquation<dim>::setup_system()
 }
 
 template <int dim>
-void WaveEquation<dim>::assemble_system()
+void LinearElasticity<dim>::assemble_system()
 {
     body_force.reinit( dof_handler.n_dofs() );
     laplace_matrix.reinit( sparsity_pattern );
@@ -321,7 +321,7 @@ void WaveEquation<dim>::assemble_system()
 }
 
 template <int dim>
-void WaveEquation<dim>::initTimeStep()
+void LinearElasticity<dim>::initTimeStep()
 {
     assert( !init );
 
@@ -333,7 +333,7 @@ void WaveEquation<dim>::initTimeStep()
 }
 
 template <int dim>
-void WaveEquation<dim>::finalizeTimeStep()
+void LinearElasticity<dim>::finalizeTimeStep()
 {
     assert( init );
 
@@ -349,7 +349,7 @@ void WaveEquation<dim>::finalizeTimeStep()
     init = false;
 }
 
-// @sect4{WaveEquation::solve_u and WaveEquation::solve_v}
+// @sect4{LinearElasticity::solve_u and LinearElasticity::solve_v}
 
 // The next two functions deal with solving the linear systems associated
 // with the equations for $U^n$ and $V^n$. Both are not particularly
@@ -364,7 +364,7 @@ void WaveEquation<dim>::finalizeTimeStep()
 // is not much of a loss either, but let's keep it simple and just do
 // without:
 template <int dim>
-void WaveEquation<dim>::solve_u()
+void LinearElasticity<dim>::solve_u()
 {
     SolverControl solver_control( 1000, 1e-12 * system_rhs.l2_norm() );
     SolverCG<>              cg( solver_control );
@@ -383,7 +383,7 @@ void WaveEquation<dim>::solve_u()
 }
 
 template <int dim>
-void WaveEquation<dim>::solve_v()
+void LinearElasticity<dim>::solve_v()
 {
     SolverControl solver_control( 1000, 1e-12 * system_rhs.l2_norm() );
     SolverCG<>              cg( solver_control );
@@ -401,7 +401,7 @@ void WaveEquation<dim>::solve_v()
               << std::endl;
 }
 
-// @sect4{WaveEquation::output_results}
+// @sect4{LinearElasticity::output_results}
 
 // Likewise, the following function is pretty much what we've done
 // before. The only thing worth mentioning is how here we generate a string
@@ -409,7 +409,7 @@ void WaveEquation<dim>::solve_v()
 // character length using the Utilities::int_to_string function's second
 // argument.
 template <int dim>
-void WaveEquation<dim>::output_results() const
+void LinearElasticity<dim>::output_results() const
 {
     return;
     DataOut<dim> data_out;
@@ -440,7 +440,7 @@ void WaveEquation<dim>::output_results() const
     data_out.write_vtk( output );
 }
 
-// @sect4{WaveEquation::run}
+// @sect4{LinearElasticity::run}
 
 // The following is really the only interesting function of the program. It
 // contains the loop over all time steps, but before we get to that we have
@@ -451,7 +451,7 @@ void WaveEquation<dim>::output_results() const
 // onto the finite element space described by the DoFHandler object. Can't
 // be any simpler than that:
 template <int dim>
-void WaveEquation<dim>::run()
+void LinearElasticity<dim>::run()
 {
     setup_system();
 
@@ -603,13 +603,13 @@ void WaveEquation<dim>::run()
 }
 
 template <int dim>
-unsigned int WaveEquation<dim>::n_dofs() const
+unsigned int LinearElasticity<dim>::n_dofs() const
 {
     return dof_handler.n_dofs();
 }
 
 template <int dim>
-double WaveEquation<dim>::point_value() const
+double LinearElasticity<dim>::point_value() const
 {
     Point<dim> point( 0.6, 0.2 );
 
@@ -627,7 +627,7 @@ double WaveEquation<dim>::point_value() const
 }
 
 template <int dim>
-double WaveEquation<dim>::get_traction(
+double LinearElasticity<dim>::get_traction(
     const unsigned int component_i,
     const unsigned int
     )

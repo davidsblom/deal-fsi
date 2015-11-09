@@ -119,7 +119,7 @@ BOOST_AUTO_TEST_CASE( polynomial_degree_test )
     for ( unsigned int i = 0; i < nbComputations; ++i )
     {
         n_global_refines = i + 2;
-        WaveEquation<2> wave_equation_solver( time_step, theta, degree, gravity, distributed_load, n_global_refines );
+        LinearElasticity<2> wave_equation_solver( time_step, theta, degree, gravity, distributed_load, n_global_refines );
         wave_equation_solver.run();
 
         n_dofs[i] = wave_equation_solver.n_dofs();
@@ -164,7 +164,7 @@ BOOST_AUTO_TEST_CASE( polynomial_degree_test_distributed_load )
     for ( unsigned int i = 0; i < nbComputations; ++i )
     {
         n_global_refines = i + 2;
-        WaveEquation<2> wave_equation_solver( time_step, theta, degree, gravity, distributed_load, n_global_refines );
+        LinearElasticity<2> wave_equation_solver( time_step, theta, degree, gravity, distributed_load, n_global_refines );
         wave_equation_solver.run();
 
         n_dofs[i] = wave_equation_solver.n_dofs();
@@ -210,7 +210,7 @@ BOOST_AUTO_TEST_CASE( crank_nicolson_distributed_load )
     {
         double dt = time_step / std::pow( 2, i );
 
-        WaveEquation<2> wave_equation_solver( dt, theta, degree, gravity, distributed_load, n_global_refines );
+        LinearElasticity<2> wave_equation_solver( dt, theta, degree, gravity, distributed_load, n_global_refines );
         wave_equation_solver.run();
 
         if ( i > 0 )
@@ -276,7 +276,7 @@ BOOST_AUTO_TEST_CASE( crank_nicolson_combined_load )
     {
         double dt = time_step / std::pow( 2, i );
 
-        WaveEquation<2> wave_equation_solver( dt, theta, degree, gravity, distributed_load, n_global_refines );
+        LinearElasticity<2> wave_equation_solver( dt, theta, degree, gravity, distributed_load, n_global_refines );
         wave_equation_solver.run();
 
         if ( i > 0 )
@@ -342,7 +342,7 @@ BOOST_AUTO_TEST_CASE( crank_nicolson_test )
     {
         double dt = time_step / std::pow( 2, i );
 
-        WaveEquation<2> wave_equation_solver( dt, theta, degree, gravity, distributed_load, n_global_refines );
+        LinearElasticity<2> wave_equation_solver( dt, theta, degree, gravity, distributed_load, n_global_refines );
         wave_equation_solver.run();
 
         if ( i > 0 )
@@ -408,7 +408,7 @@ BOOST_AUTO_TEST_CASE( backward_euler )
     {
         double dt = time_step / std::pow( 2, i );
 
-        WaveEquation<2> wave_equation_solver( dt, theta, degree, gravity, distributed_load, n_global_refines );
+        LinearElasticity<2> wave_equation_solver( dt, theta, degree, gravity, distributed_load, n_global_refines );
         wave_equation_solver.run();
 
         if ( i > 0 )
@@ -471,7 +471,7 @@ BOOST_AUTO_TEST_CASE( theta )
     {
         double dt = time_step / std::pow( 2, i );
 
-        WaveEquation<2> wave_equation_solver( dt, theta, degree, gravity, distributed_load, n_global_refines );
+        LinearElasticity<2> wave_equation_solver( dt, theta, degree, gravity, distributed_load, n_global_refines );
         wave_equation_solver.run();
 
         if ( i > 0 )
