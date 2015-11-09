@@ -1,4 +1,9 @@
 
+/*
+ * Author
+ *   David Blom, TU Delft. All rights reserved.
+ */
+
 template <int dim>
 LinearElasticity<dim>::LinearElasticity (
     double time_step,
