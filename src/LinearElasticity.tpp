@@ -498,7 +498,7 @@ void LinearElasticity<dim>::run()
     timestep_number = 1;
     time = initial_time + time_step;
 
-    while ( time <= final_time )
+    while ( isRunning() )
     {
         initTimeStep();
 
