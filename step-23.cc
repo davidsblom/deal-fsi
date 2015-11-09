@@ -158,7 +158,7 @@ BOOST_AUTO_TEST_CASE( crank_nicolson_distributed_load )
     {
         double dt = time_step / std::pow( 2, i );
 
-        LinearElasticity<2> wave_equation_solver( dt, theta, degree, gravity, distributed_load, rho, n_global_refines );
+        LinearElasticity<2> wave_equation_solver( dt, final_time, theta, degree, gravity, distributed_load, rho, n_global_refines );
         wave_equation_solver.run();
 
         if ( i > 0 )
@@ -226,7 +226,7 @@ BOOST_AUTO_TEST_CASE( crank_nicolson_combined_load )
     {
         double dt = time_step / std::pow( 2, i );
 
-        LinearElasticity<2> wave_equation_solver( dt, theta, degree, gravity, distributed_load, rho, n_global_refines );
+        LinearElasticity<2> wave_equation_solver( dt, final_time, theta, degree, gravity, distributed_load, rho, n_global_refines );
         wave_equation_solver.run();
 
         if ( i > 0 )
@@ -294,7 +294,7 @@ BOOST_AUTO_TEST_CASE( crank_nicolson_test )
     {
         double dt = time_step / std::pow( 2, i );
 
-        LinearElasticity<2> wave_equation_solver( dt, theta, degree, gravity, distributed_load, rho, n_global_refines );
+        LinearElasticity<2> wave_equation_solver( dt, final_time, theta, degree, gravity, distributed_load, rho, n_global_refines );
         wave_equation_solver.run();
 
         if ( i > 0 )
@@ -362,7 +362,7 @@ BOOST_AUTO_TEST_CASE( backward_euler )
     {
         double dt = time_step / std::pow( 2, i );
 
-        LinearElasticity<2> wave_equation_solver( dt, theta, degree, gravity, distributed_load, rho, n_global_refines );
+        LinearElasticity<2> wave_equation_solver( dt, final_time, theta, degree, gravity, distributed_load, rho, n_global_refines );
         wave_equation_solver.run();
 
         if ( i > 0 )
@@ -427,7 +427,7 @@ BOOST_AUTO_TEST_CASE( theta )
     {
         double dt = time_step / std::pow( 2, i );
 
-        LinearElasticity<2> wave_equation_solver( dt, theta, degree, gravity, distributed_load, rho, n_global_refines );
+        LinearElasticity<2> wave_equation_solver( dt, final_time, theta, degree, gravity, distributed_load, rho, n_global_refines );
         wave_equation_solver.run();
 
         if ( i > 0 )
