@@ -574,3 +574,48 @@ BOOST_AUTO_TEST_CASE( displacement_end )
     BOOST_CHECK_CLOSE( displacement( 2, 0 ), -4.18553000e-05, 0.1 );
     BOOST_CHECK_CLOSE( displacement( 2, 1 ), -5.65638000e-05, 0.1 );
 }
+
+BOOST_AUTO_TEST_CASE( iterations )
+{
+    using namespace dealii;
+    using namespace Step23;
+
+    double time_step = 2.5e-3;
+    double theta = 0.6;
+    unsigned int degree = 1;
+    unsigned int n_global_refines = 0;
+    double gravity = 2;
+    double distributed_load = 0;
+    double rho = 1000;
+    double final_time = 0.05;
+
+    LinearElasticity<2> linear_elasticity_solver( time_step, final_time, theta, degree, gravity, distributed_load, rho, n_global_refines );
+    linear_elasticity_solver.run();
+
+    EigenMatrix displacement, displacement_2;
+    linear_elasticity_solver.getDisplacement( displacement );
+
+    LinearElasticity<2> linear_elasticity_solver_2( time_step, final_time, theta, degree, gravity, distributed_load, rho, n_global_refines );
+
+    while ( linear_elasticity_solver_2.isRunning() )
+    {
+        linear_elasticity_solver_2.initTimeStep();
+
+        // Random number of iterations between 1 and 10
+        unsigned int nbIter = rand() % 10 + 1;
+
+        for ( unsigned int i = 0; i < nbIter; ++i )
+            linear_elasticity_solver_2.solve();
+
+        linear_elasticity_solver_2.finalizeTimeStep();
+    }
+
+    linear_elasticity_solver_2.getDisplacement( displacement_2 );
+
+    BOOST_CHECK_EQUAL( displacement.cols(), displacement_2.cols() );
+    BOOST_CHECK_EQUAL( displacement.rows(), displacement_2.rows() );
+
+    for ( unsigned int i = 0; i < displacement.rows(); ++i )
+        for ( unsigned int j = 0; j < displacement.cols(); ++j )
+            BOOST_CHECK_CLOSE( displacement( i, j ), displacement_2( i, j ), 0.0001 );
+}
