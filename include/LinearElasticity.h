@@ -82,7 +82,7 @@ public:
         Vector<double>       body_force;
         Vector<double>       old_body_force;
 
-        double time, time_step;
+        double initial_time, final_time, time, time_step;
         unsigned int timestep_number;
         const double theta;
         const double gravity, distributed_load;
@@ -90,7 +90,7 @@ public:
 private:
 
         bool init;
-        double initial_time, final_time, rho;
+        double rho;
     };
 
     #include "../src/LinearElasticity.tpp"
