@@ -589,10 +589,12 @@ double LinearElasticity<dim>::point_value() const
 template <int dim>
 double LinearElasticity<dim>::get_traction(
     const unsigned int component_i,
-    const unsigned int
+    const unsigned int index
     )
 {
-    // return 0;
+    if ( traction.rows() > 0 )
+        return traction( dof_index_to_boundary_index.at( index ), component_i );
+
     double t = time;
     double T = 0.01;
     double offset = 0.01;
