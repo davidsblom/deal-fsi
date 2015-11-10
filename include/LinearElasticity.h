@@ -46,6 +46,8 @@ public:
             const unsigned int
             );
 
+        void getDisplacement( EigenMatrix & displacement );
+
         void getReadPositions( EigenMatrix & readPositions );
 
         void getWritePositions( EigenMatrix & writePositions );

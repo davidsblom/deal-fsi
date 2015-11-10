@@ -258,6 +258,50 @@ void LinearElasticity<dim>::finalizeTimeStep()
 }
 
 template <int dim>
+void LinearElasticity<dim>::getDisplacement( EigenMatrix & displacement )
+{
+    Vector<double> localized_solution( solution_u );
+
+    typename DoFHandler<dim>::active_cell_iterator cell =
+        dof_handler.begin_active(), endc = dof_handler.end();
+
+    std::map<unsigned int, double> disp;
+
+    unsigned int dofs_per_face = fe.n_dofs_per_face();
+
+    for (; cell != endc; ++cell )
+    {
+        for ( unsigned int face = 0; face < GeometryInfo<dim>::faces_per_cell; ++face )
+        {
+            if ( cell->face( face )->at_boundary()
+                && cell->face( face )->boundary_id() != 0 )
+            {
+                std::vector<unsigned int> local_face_dof_indices( dofs_per_face );
+                cell->face( face )->get_dof_indices( local_face_dof_indices );
+
+                for ( unsigned int i = 0; i < dofs_per_face; ++i )
+                    disp.insert( std::pair<unsigned int, double>( local_face_dof_indices[i], localized_solution[local_face_dof_indices[i]] ) );
+            }
+        }
+    }
+
+    typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> matrixRowMajor;
+    matrixRowMajor displacementRowMajor( disp.size() / dim, dim );
+
+    double * data = displacementRowMajor.data();
+
+    unsigned int i = 0;
+
+    for ( auto it : disp )
+    {
+        data[i] = it.second;
+        i++;
+    }
+
+    displacement = displacementRowMajor;
+}
+
+template <int dim>
 void LinearElasticity<dim>::getWritePositions( EigenMatrix & writePositions )
 {
     typename DoFHandler<dim>::active_cell_iterator cell =
