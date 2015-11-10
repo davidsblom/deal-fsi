@@ -101,7 +101,7 @@ public:
 private:
 
         bool init;
-        double rho;
+        const double rho;
 
         std::map<unsigned int, unsigned int> dof_index_to_boundary_index;
     };
