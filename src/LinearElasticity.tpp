@@ -14,7 +14,8 @@ LinearElasticity<dim>::LinearElasticity (
     double distributed_load,
     double rho,
     unsigned int n_global_refines
-    ) :
+    )
+    :
     deg( degree ),
     n_global_refines( n_global_refines ),
     fe( FE_Q<dim>(degree), dim ),
