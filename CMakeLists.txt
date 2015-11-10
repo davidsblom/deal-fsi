@@ -20,6 +20,7 @@ SET(TARGET_SRC
   )
 
 INCLUDE_DIRECTORIES ( "./boost" )
+INCLUDE_DIRECTORIES ( "./eigen" )
 
 # Usually, you will not need to modify anything beyond this point...
 

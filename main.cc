@@ -461,3 +461,57 @@ BOOST_AUTO_TEST_CASE( theta )
         BOOST_CHECK_GE( order[i], 1 );
     }
 }
+
+BOOST_AUTO_TEST_CASE( writePositions )
+{
+    using namespace dealii;
+    using namespace Step23;
+
+    double time_step = 2.5e-3;
+    double theta = 0.6;
+    unsigned int degree = 1;
+    unsigned int n_global_refines = 0;
+    double gravity = 2;
+    double distributed_load = 0;
+    double rho = 1000;
+    double final_time = 0.05;
+
+    LinearElasticity<2> linear_elasticity_solver( time_step, final_time, theta, degree, gravity, distributed_load, rho, n_global_refines );
+
+    EigenMatrix writePositions;
+    linear_elasticity_solver.getWritePositions( writePositions );
+
+    BOOST_CHECK_EQUAL( writePositions.cols(), 2 );
+    BOOST_CHECK_GE( writePositions.rows(), 0 );
+    BOOST_CHECK_CLOSE( readPositions( 0, 0 ), 0.251109, 0.1 );
+    BOOST_CHECK_CLOSE( readPositions( 0, 1 ), 0.19, 0.1 );
+    BOOST_CHECK_CLOSE( readPositions( 1, 0 ), 0.2569, 0.1 );
+    BOOST_CHECK_CLOSE( readPositions( 1, 1 ), 0.19, 0.1 );
+}
+
+BOOST_AUTO_TEST_CASE( readPositions )
+{
+    using namespace dealii;
+    using namespace Step23;
+
+    double time_step = 2.5e-3;
+    double theta = 0.6;
+    unsigned int degree = 1;
+    unsigned int n_global_refines = 0;
+    double gravity = 2;
+    double distributed_load = 0;
+    double rho = 1000;
+    double final_time = 0.05;
+
+    LinearElasticity<2> linear_elasticity_solver( time_step, final_time, theta, degree, gravity, distributed_load, rho, n_global_refines );
+
+    EigenMatrix readPositions;
+    linear_elasticity_solver.getReadPositions( readPositions );
+
+    BOOST_CHECK_EQUAL( readPositions.cols(), 2 );
+    BOOST_CHECK_GE( readPositions.rows(), 0 );
+    BOOST_CHECK_CLOSE( readPositions( 0, 0 ), 0.251109, 0.1 );
+    BOOST_CHECK_CLOSE( readPositions( 0, 1 ), 0.19, 0.1 );
+    BOOST_CHECK_CLOSE( readPositions( 1, 0 ), 0.2569, 0.1 );
+    BOOST_CHECK_CLOSE( readPositions( 1, 1 ), 0.19, 0.1 );
+}
