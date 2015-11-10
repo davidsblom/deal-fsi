@@ -63,11 +63,11 @@ BOOST_AUTO_TEST_CASE( polynomial_degree_test )
     for ( unsigned int i = 0; i < nbComputations; ++i )
     {
         n_global_refines = i + 2;
-        LinearElasticity<2> wave_equation_solver( time_step, final_time, theta, degree, gravity, distributed_load, rho, n_global_refines );
-        wave_equation_solver.run();
+        LinearElasticity<2> linear_elasticity_solver( time_step, final_time, theta, degree, gravity, distributed_load, rho, n_global_refines );
+        linear_elasticity_solver.run();
 
-        n_dofs[i] = wave_equation_solver.n_dofs();
-        solution[i] = wave_equation_solver.point_value();
+        n_dofs[i] = linear_elasticity_solver.n_dofs();
+        solution[i] = linear_elasticity_solver.point_value();
 
         BOOST_CHECK_CLOSE( solution[i], -0.001351993, 0.1 );
     }
@@ -110,11 +110,11 @@ BOOST_AUTO_TEST_CASE( polynomial_degree_test_distributed_load )
     for ( unsigned int i = 0; i < nbComputations; ++i )
     {
         n_global_refines = i + 2;
-        LinearElasticity<2> wave_equation_solver( time_step, final_time, theta, degree, gravity, distributed_load, rho, n_global_refines );
-        wave_equation_solver.run();
+        LinearElasticity<2> linear_elasticity_solver( time_step, final_time, theta, degree, gravity, distributed_load, rho, n_global_refines );
+        linear_elasticity_solver.run();
 
-        n_dofs[i] = wave_equation_solver.n_dofs();
-        solution[i] = wave_equation_solver.point_value();
+        n_dofs[i] = linear_elasticity_solver.n_dofs();
+        solution[i] = linear_elasticity_solver.point_value();
 
         BOOST_CHECK_CLOSE( solution[i], -0.0016910513, 0.1 );
     }
@@ -158,21 +158,21 @@ BOOST_AUTO_TEST_CASE( crank_nicolson_distributed_load )
     {
         double dt = time_step / std::pow( 2, i );
 
-        LinearElasticity<2> wave_equation_solver( dt, final_time, theta, degree, gravity, distributed_load, rho, n_global_refines );
-        wave_equation_solver.run();
+        LinearElasticity<2> linear_elasticity_solver( dt, final_time, theta, degree, gravity, distributed_load, rho, n_global_refines );
+        linear_elasticity_solver.run();
 
         if ( i > 0 )
-            assert( nbTimeSteps[i - 1] * 2 == wave_equation_solver.timestep_number );
+            assert( nbTimeSteps[i - 1] * 2 == linear_elasticity_solver.timestep_number );
 
         double l2norm = 0;
 
-        for ( unsigned int i = 0; i < wave_equation_solver.solution_v.size(); ++i )
-            l2norm += wave_equation_solver.solution_v[i] * wave_equation_solver.solution_v[i];
+        for ( unsigned int i = 0; i < linear_elasticity_solver.solution_v.size(); ++i )
+            l2norm += linear_elasticity_solver.solution_v[i] * linear_elasticity_solver.solution_v[i];
 
         l2norm = std::sqrt( l2norm );
 
         solution_l2_norm[i] = l2norm;
-        nbTimeSteps[i] = wave_equation_solver.timestep_number;
+        nbTimeSteps[i] = linear_elasticity_solver.timestep_number;
     }
 
     std::vector<double> error( nbComputations - 1 );
@@ -226,21 +226,21 @@ BOOST_AUTO_TEST_CASE( crank_nicolson_combined_load )
     {
         double dt = time_step / std::pow( 2, i );
 
-        LinearElasticity<2> wave_equation_solver( dt, final_time, theta, degree, gravity, distributed_load, rho, n_global_refines );
-        wave_equation_solver.run();
+        LinearElasticity<2> linear_elasticity_solver( dt, final_time, theta, degree, gravity, distributed_load, rho, n_global_refines );
+        linear_elasticity_solver.run();
 
         if ( i > 0 )
-            assert( nbTimeSteps[i - 1] * 2 == wave_equation_solver.timestep_number );
+            assert( nbTimeSteps[i - 1] * 2 == linear_elasticity_solver.timestep_number );
 
         double l2norm = 0;
 
-        for ( unsigned int i = 0; i < wave_equation_solver.solution_v.size(); ++i )
-            l2norm += wave_equation_solver.solution_v[i] * wave_equation_solver.solution_v[i];
+        for ( unsigned int i = 0; i < linear_elasticity_solver.solution_v.size(); ++i )
+            l2norm += linear_elasticity_solver.solution_v[i] * linear_elasticity_solver.solution_v[i];
 
         l2norm = std::sqrt( l2norm );
 
         solution_l2_norm[i] = l2norm;
-        nbTimeSteps[i] = wave_equation_solver.timestep_number;
+        nbTimeSteps[i] = linear_elasticity_solver.timestep_number;
     }
 
     std::vector<double> error( nbComputations - 1 );
@@ -294,21 +294,21 @@ BOOST_AUTO_TEST_CASE( crank_nicolson_test )
     {
         double dt = time_step / std::pow( 2, i );
 
-        LinearElasticity<2> wave_equation_solver( dt, final_time, theta, degree, gravity, distributed_load, rho, n_global_refines );
-        wave_equation_solver.run();
+        LinearElasticity<2> linear_elasticity_solver( dt, final_time, theta, degree, gravity, distributed_load, rho, n_global_refines );
+        linear_elasticity_solver.run();
 
         if ( i > 0 )
-            assert( nbTimeSteps[i - 1] * 2 == wave_equation_solver.timestep_number );
+            assert( nbTimeSteps[i - 1] * 2 == linear_elasticity_solver.timestep_number );
 
         double l2norm = 0;
 
-        for ( unsigned int i = 0; i < wave_equation_solver.solution_v.size(); ++i )
-            l2norm += wave_equation_solver.solution_v[i] * wave_equation_solver.solution_v[i];
+        for ( unsigned int i = 0; i < linear_elasticity_solver.solution_v.size(); ++i )
+            l2norm += linear_elasticity_solver.solution_v[i] * linear_elasticity_solver.solution_v[i];
 
         l2norm = std::sqrt( l2norm );
 
         solution_l2_norm[i] = l2norm;
-        nbTimeSteps[i] = wave_equation_solver.timestep_number;
+        nbTimeSteps[i] = linear_elasticity_solver.timestep_number;
     }
 
     std::vector<double> error( nbComputations - 1 );
@@ -362,21 +362,21 @@ BOOST_AUTO_TEST_CASE( backward_euler )
     {
         double dt = time_step / std::pow( 2, i );
 
-        LinearElasticity<2> wave_equation_solver( dt, final_time, theta, degree, gravity, distributed_load, rho, n_global_refines );
-        wave_equation_solver.run();
+        LinearElasticity<2> linear_elasticity_solver( dt, final_time, theta, degree, gravity, distributed_load, rho, n_global_refines );
+        linear_elasticity_solver.run();
 
         if ( i > 0 )
-            assert( nbTimeSteps[i - 1] * 2 == wave_equation_solver.timestep_number );
+            assert( nbTimeSteps[i - 1] * 2 == linear_elasticity_solver.timestep_number );
 
         double l2norm = 0;
 
-        for ( unsigned int i = 0; i < wave_equation_solver.solution_v.size(); ++i )
-            l2norm += wave_equation_solver.solution_v[i] * wave_equation_solver.solution_v[i];
+        for ( unsigned int i = 0; i < linear_elasticity_solver.solution_v.size(); ++i )
+            l2norm += linear_elasticity_solver.solution_v[i] * linear_elasticity_solver.solution_v[i];
 
         l2norm = std::sqrt( l2norm );
 
         solution_l2_norm[i] = l2norm;
-        nbTimeSteps[i] = wave_equation_solver.timestep_number;
+        nbTimeSteps[i] = linear_elasticity_solver.timestep_number;
     }
 
     std::vector<double> error( nbComputations - 1 );
@@ -427,21 +427,21 @@ BOOST_AUTO_TEST_CASE( theta )
     {
         double dt = time_step / std::pow( 2, i );
 
-        LinearElasticity<2> wave_equation_solver( dt, final_time, theta, degree, gravity, distributed_load, rho, n_global_refines );
-        wave_equation_solver.run();
+        LinearElasticity<2> linear_elasticity_solver( dt, final_time, theta, degree, gravity, distributed_load, rho, n_global_refines );
+        linear_elasticity_solver.run();
 
         if ( i > 0 )
-            assert( nbTimeSteps[i - 1] * 2 == wave_equation_solver.timestep_number );
+            assert( nbTimeSteps[i - 1] * 2 == linear_elasticity_solver.timestep_number );
 
         double l2norm = 0;
 
-        for ( unsigned int i = 0; i < wave_equation_solver.solution_v.size(); ++i )
-            l2norm += wave_equation_solver.solution_v[i] * wave_equation_solver.solution_v[i];
+        for ( unsigned int i = 0; i < linear_elasticity_solver.solution_v.size(); ++i )
+            l2norm += linear_elasticity_solver.solution_v[i] * linear_elasticity_solver.solution_v[i];
 
         l2norm = std::sqrt( l2norm );
 
         solution_l2_norm[i] = l2norm;
-        nbTimeSteps[i] = wave_equation_solver.timestep_number;
+        nbTimeSteps[i] = linear_elasticity_solver.timestep_number;
     }
 
     std::vector<double> error( nbComputations - 1 );
@@ -483,10 +483,10 @@ BOOST_AUTO_TEST_CASE( writePositions )
 
     BOOST_CHECK_EQUAL( writePositions.cols(), 2 );
     BOOST_CHECK_GE( writePositions.rows(), 0 );
-    BOOST_CHECK_CLOSE( readPositions( 0, 0 ), 0.251109, 0.1 );
-    BOOST_CHECK_CLOSE( readPositions( 0, 1 ), 0.19, 0.1 );
-    BOOST_CHECK_CLOSE( readPositions( 1, 0 ), 0.2569, 0.1 );
-    BOOST_CHECK_CLOSE( readPositions( 1, 1 ), 0.19, 0.1 );
+    BOOST_CHECK_CLOSE( writePositions( 0, 0 ), 0.251109, 0.1 );
+    BOOST_CHECK_CLOSE( writePositions( 0, 1 ), 0.19, 0.1 );
+    BOOST_CHECK_CLOSE( writePositions( 1, 0 ), 0.2569, 0.1 );
+    BOOST_CHECK_CLOSE( writePositions( 1, 1 ), 0.19, 0.1 );
 }
 
 BOOST_AUTO_TEST_CASE( readPositions )
