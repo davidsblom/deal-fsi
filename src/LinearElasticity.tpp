@@ -44,7 +44,8 @@ LinearElasticity<dim>::LinearElasticity (
     distributed_load( distributed_load ),
     init( false ),
     rho( rho ),
-    dof_index_to_boundary_index()
+    dof_index_to_boundary_index(),
+    traction()
 {
     assert( degree >= 1 );
     assert( time_step > 0 );
@@ -379,6 +380,12 @@ template <int dim>
 void LinearElasticity<dim>::getReadPositions( EigenMatrix & readPositions )
 {
     getWritePositions( readPositions );
+}
+
+template <int dim>
+void LinearElasticity<dim>::setTraction( const EigenMatrix & traction )
+{
+    this->traction = traction;
 }
 
 template <int dim>

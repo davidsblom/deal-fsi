@@ -82,6 +82,8 @@ public:
 
         void getWritePositions( EigenMatrix & writePositions );
 
+        void setTraction( const EigenMatrix & traction );
+
         void initTimeStep();
 
         bool isRunning();
@@ -134,6 +136,7 @@ private:
         const double rho;
 
         std::map<unsigned int, unsigned int> dof_index_to_boundary_index;
+        EigenMatrix traction;
     };
 
     #include "../src/LinearElasticity.tpp"
