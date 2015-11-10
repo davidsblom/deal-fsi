@@ -4,9 +4,6 @@
  *   David Blom, TU Delft. All rights reserved.
  */
 
-#include <fstream>
-#include <iostream>
-
 #include "include/LinearElasticity.h"
 
 #define BOOST_TEST_MODULE SolidMechanicsTest

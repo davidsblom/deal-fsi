@@ -18,8 +18,22 @@ LinearElasticity<dim>::LinearElasticity (
     :
     deg( degree ),
     n_global_refines( n_global_refines ),
+    triangulation(),
     fe( FE_Q<dim>(degree), dim ),
     dof_handler( triangulation ),
+    constraints(),
+    sparsity_pattern(),
+    mass_matrix(),
+    laplace_matrix(),
+    matrix_u(),
+    matrix_v(),
+    solution_u(),
+    solution_v(),
+    old_solution_u(),
+    old_solution_v(),
+    system_rhs(),
+    body_force(),
+    old_body_force(),
     initial_time( 0 ),
     final_time( final_time ),
     time( initial_time ),
@@ -29,7 +43,8 @@ LinearElasticity<dim>::LinearElasticity (
     gravity( gravity ),
     distributed_load( distributed_load ),
     init( false ),
-    rho( rho )
+    rho( rho ),
+    dof_index_to_boundary_index()
 {
     assert( degree >= 1 );
     assert( time_step > 0 );
