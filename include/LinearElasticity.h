@@ -72,8 +72,8 @@ public:
 
         void solve_v();
 
-        unsigned int deg;
-        unsigned int n_global_refines;
+        const unsigned int deg;
+        const unsigned int n_global_refines;
 
         Triangulation<dim>   triangulation;
         FESystem<dim>        fe;
