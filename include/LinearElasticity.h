@@ -37,7 +37,7 @@
 #include <deal.II/numerics/matrix_tools.h>
 #include <deal.II/base/utilities.h>
 
-#include "include/RightHandSide.h"
+#include "RightHandSide.h"
 
 namespace Step23
 {
