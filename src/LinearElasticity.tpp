@@ -19,13 +19,15 @@ LinearElasticity<dim>::LinearElasticity (
     n_global_refines( n_global_refines ),
     fe( FE_Q<dim>(degree), dim ),
     dof_handler( triangulation ),
+    initial_time( 0 ),
+    final_time( final_time ),
+    time( initial_time ),
     time_step( time_step ),
+    timestep_number( 0 ),
     theta( theta ),
     gravity( gravity ),
     distributed_load( distributed_load ),
     init( false ),
-    initial_time( 0 ),
-    final_time( final_time ),
     rho( rho )
 {
     assert( degree >= 1 );
@@ -33,6 +35,13 @@ LinearElasticity<dim>::LinearElasticity (
     assert( theta >= 0 && theta <= 1 );
     assert( rho > 0 );
     assert( final_time > initial_time );
+
+    setup_system();
+
+    output_results();
+
+    timestep_number = 1;
+    time = initial_time + time_step;
 }
 
 template <int dim>
@@ -326,17 +335,6 @@ void LinearElasticity<dim>::output_results() const
 template <int dim>
 void LinearElasticity<dim>::run()
 {
-    setup_system();
-
-    initial_time = 0;
-
-    timestep_number = 0;
-
-    output_results();
-
-    timestep_number = 1;
-    time = initial_time + time_step;
-
     while ( isRunning() )
     {
         initTimeStep();
