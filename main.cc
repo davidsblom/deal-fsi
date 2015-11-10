@@ -4,13 +4,6 @@
  *   David Blom, TU Delft. All rights reserved.
  */
 
-#include <fstream>
-#include <iostream>
-#include <deal.II/numerics/vector_tools.h>
-#include <deal.II/numerics/matrix_tools.h>
-#include <deal.II/base/utilities.h>
-
-#include "include/RightHandSide.h"
 #include "include/LinearElasticity.h"
 
 #define BOOST_TEST_MODULE SolidMechanicsTest
