@@ -6,6 +6,9 @@
  *   David Blom, TU Delft. All rights reserved.
  */
 
+#include <Eigen/Dense>
+#include <map>
+
 namespace Step23
 {
     using namespace dealii;
@@ -15,6 +18,8 @@ namespace Step23
         SparseMatrix<Scalar> & A,
         Vector<Scalar> & b
         );
+
+    typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> EigenMatrix;
 
     template <int dim>
     class LinearElasticity
@@ -41,6 +46,12 @@ public:
             const unsigned int
             );
 
+        void getDisplacement( EigenMatrix & displacement );
+
+        void getReadPositions( EigenMatrix & readPositions );
+
+        void getWritePositions( EigenMatrix & writePositions );
+
         void initTimeStep();
 
         bool isRunning();
@@ -61,8 +72,8 @@ public:
 
         void solve_v();
 
-        unsigned int deg;
-        unsigned int n_global_refines;
+        const unsigned int deg;
+        const unsigned int n_global_refines;
 
         Triangulation<dim>   triangulation;
         FESystem<dim>        fe;
@@ -90,7 +101,9 @@ public:
 private:
 
         bool init;
-        double rho;
+        const double rho;
+
+        std::map<unsigned int, unsigned int> dof_index_to_boundary_index;
     };
 
     #include "../src/LinearElasticity.tpp"
