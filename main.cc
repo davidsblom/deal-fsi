@@ -24,6 +24,8 @@ BOOST_AUTO_TEST_CASE( polynomial_degree_test )
     double distributed_load = 0;
     double rho = 1000;
     double final_time = 0.05;
+    double nu = 0.4;
+    double E = 1.4e6;
 
     unsigned int nbComputations = 4;
 
@@ -33,7 +35,7 @@ BOOST_AUTO_TEST_CASE( polynomial_degree_test )
     for ( unsigned int i = 0; i < nbComputations; ++i )
     {
         n_global_refines = i + 2;
-        LinearElasticity<2> linear_elasticity_solver( time_step, final_time, theta, degree, gravity, distributed_load, rho, n_global_refines );
+        LinearElasticity<2> linear_elasticity_solver( time_step, final_time, theta, degree, gravity, distributed_load, rho, E, nu, n_global_refines );
         linear_elasticity_solver.run();
 
         n_dofs[i] = linear_elasticity_solver.n_dofs();
@@ -71,6 +73,8 @@ BOOST_AUTO_TEST_CASE( polynomial_degree_test_distributed_load )
     double distributed_load = 49.757;
     double rho = 1000;
     double final_time = 0.05;
+    double nu = 0.4;
+    double E = 1.4e6;
 
     unsigned int nbComputations = 4;
 
@@ -80,7 +84,7 @@ BOOST_AUTO_TEST_CASE( polynomial_degree_test_distributed_load )
     for ( unsigned int i = 0; i < nbComputations; ++i )
     {
         n_global_refines = i + 2;
-        LinearElasticity<2> linear_elasticity_solver( time_step, final_time, theta, degree, gravity, distributed_load, rho, n_global_refines );
+        LinearElasticity<2> linear_elasticity_solver( time_step, final_time, theta, degree, gravity, distributed_load, rho, E, nu, n_global_refines );
         linear_elasticity_solver.run();
 
         n_dofs[i] = linear_elasticity_solver.n_dofs();
@@ -118,6 +122,8 @@ BOOST_AUTO_TEST_CASE( crank_nicolson_distributed_load )
     double distributed_load = 49.757;
     double rho = 1000;
     double final_time = 0.05;
+    double nu = 0.4;
+    double E = 1.4e6;
 
     unsigned int nbComputations = 4;
 
@@ -128,7 +134,7 @@ BOOST_AUTO_TEST_CASE( crank_nicolson_distributed_load )
     {
         double dt = time_step / std::pow( 2, i );
 
-        LinearElasticity<2> linear_elasticity_solver( dt, final_time, theta, degree, gravity, distributed_load, rho, n_global_refines );
+        LinearElasticity<2> linear_elasticity_solver( dt, final_time, theta, degree, gravity, distributed_load, rho, E, nu, n_global_refines );
         linear_elasticity_solver.run();
 
         if ( i > 0 )
@@ -186,6 +192,8 @@ BOOST_AUTO_TEST_CASE( crank_nicolson_combined_load )
     double distributed_load = 49.757;
     double rho = 1000;
     double final_time = 0.05;
+    double nu = 0.4;
+    double E = 1.4e6;
 
     unsigned int nbComputations = 4;
 
@@ -196,7 +204,7 @@ BOOST_AUTO_TEST_CASE( crank_nicolson_combined_load )
     {
         double dt = time_step / std::pow( 2, i );
 
-        LinearElasticity<2> linear_elasticity_solver( dt, final_time, theta, degree, gravity, distributed_load, rho, n_global_refines );
+        LinearElasticity<2> linear_elasticity_solver( dt, final_time, theta, degree, gravity, distributed_load, rho, E, nu, n_global_refines );
         linear_elasticity_solver.run();
 
         if ( i > 0 )
@@ -254,6 +262,8 @@ BOOST_AUTO_TEST_CASE( crank_nicolson_test )
     double distributed_load = 0;
     double rho = 1000;
     double final_time = 0.05;
+    double nu = 0.4;
+    double E = 1.4e6;
 
     unsigned int nbComputations = 4;
 
@@ -264,7 +274,7 @@ BOOST_AUTO_TEST_CASE( crank_nicolson_test )
     {
         double dt = time_step / std::pow( 2, i );
 
-        LinearElasticity<2> linear_elasticity_solver( dt, final_time, theta, degree, gravity, distributed_load, rho, n_global_refines );
+        LinearElasticity<2> linear_elasticity_solver( dt, final_time, theta, degree, gravity, distributed_load, rho, E, nu, n_global_refines );
         linear_elasticity_solver.run();
 
         if ( i > 0 )
@@ -322,6 +332,8 @@ BOOST_AUTO_TEST_CASE( backward_euler )
     double distributed_load = 0;
     double rho = 1000;
     double final_time = 0.05;
+    double nu = 0.4;
+    double E = 1.4e6;
 
     unsigned int nbComputations = 4;
 
@@ -332,7 +344,7 @@ BOOST_AUTO_TEST_CASE( backward_euler )
     {
         double dt = time_step / std::pow( 2, i );
 
-        LinearElasticity<2> linear_elasticity_solver( dt, final_time, theta, degree, gravity, distributed_load, rho, n_global_refines );
+        LinearElasticity<2> linear_elasticity_solver( dt, final_time, theta, degree, gravity, distributed_load, rho, E, nu, n_global_refines );
         linear_elasticity_solver.run();
 
         if ( i > 0 )
@@ -387,6 +399,8 @@ BOOST_AUTO_TEST_CASE( theta )
     double distributed_load = 0;
     double rho = 1000;
     double final_time = 0.05;
+    double nu = 0.4;
+    double E = 1.4e6;
 
     unsigned int nbComputations = 4;
 
@@ -397,7 +411,7 @@ BOOST_AUTO_TEST_CASE( theta )
     {
         double dt = time_step / std::pow( 2, i );
 
-        LinearElasticity<2> linear_elasticity_solver( dt, final_time, theta, degree, gravity, distributed_load, rho, n_global_refines );
+        LinearElasticity<2> linear_elasticity_solver( dt, final_time, theta, degree, gravity, distributed_load, rho, E, nu, n_global_refines );
         linear_elasticity_solver.run();
 
         if ( i > 0 )
@@ -445,8 +459,10 @@ BOOST_AUTO_TEST_CASE( writePositions )
     double distributed_load = 0;
     double rho = 1000;
     double final_time = 0.05;
+    double nu = 0.4;
+    double E = 1.4e6;
 
-    LinearElasticity<2> linear_elasticity_solver( time_step, final_time, theta, degree, gravity, distributed_load, rho, n_global_refines );
+    LinearElasticity<2> linear_elasticity_solver( time_step, final_time, theta, degree, gravity, distributed_load, rho, E, nu, n_global_refines );
 
     EigenMatrix writePositions;
     linear_elasticity_solver.getWritePositions( writePositions );
@@ -472,8 +488,10 @@ BOOST_AUTO_TEST_CASE( readPositions )
     double distributed_load = 0;
     double rho = 1000;
     double final_time = 0.05;
+    double nu = 0.4;
+    double E = 1.4e6;
 
-    LinearElasticity<2> linear_elasticity_solver( time_step, final_time, theta, degree, gravity, distributed_load, rho, n_global_refines );
+    LinearElasticity<2> linear_elasticity_solver( time_step, final_time, theta, degree, gravity, distributed_load, rho, E, nu, n_global_refines );
 
     EigenMatrix readPositions;
     linear_elasticity_solver.getReadPositions( readPositions );
@@ -499,8 +517,10 @@ BOOST_AUTO_TEST_CASE( displacement )
     double distributed_load = 0;
     double rho = 1000;
     double final_time = 0.05;
+    double nu = 0.4;
+    double E = 1.4e6;
 
-    LinearElasticity<2> linear_elasticity_solver( time_step, final_time, theta, degree, gravity, distributed_load, rho, n_global_refines );
+    LinearElasticity<2> linear_elasticity_solver( time_step, final_time, theta, degree, gravity, distributed_load, rho, E, nu, n_global_refines );
 
     EigenMatrix readPositions, displacement;
     linear_elasticity_solver.getReadPositions( readPositions );
@@ -525,8 +545,10 @@ BOOST_AUTO_TEST_CASE( displacement_end )
     double distributed_load = 0;
     double rho = 1000;
     double final_time = 0.05;
+    double nu = 0.4;
+    double E = 1.4e6;
 
-    LinearElasticity<2> linear_elasticity_solver( time_step, final_time, theta, degree, gravity, distributed_load, rho, n_global_refines );
+    LinearElasticity<2> linear_elasticity_solver( time_step, final_time, theta, degree, gravity, distributed_load, rho, E, nu, n_global_refines );
 
     EigenMatrix readPositions, displacement;
     linear_elasticity_solver.getReadPositions( readPositions );
@@ -558,14 +580,16 @@ BOOST_AUTO_TEST_CASE( iterations )
     double distributed_load = 0;
     double rho = 1000;
     double final_time = 0.05;
+    double nu = 0.4;
+    double E = 1.4e6;
 
-    LinearElasticity<2> linear_elasticity_solver( time_step, final_time, theta, degree, gravity, distributed_load, rho, n_global_refines );
+    LinearElasticity<2> linear_elasticity_solver( time_step, final_time, theta, degree, gravity, distributed_load, rho, E, nu, n_global_refines );
     linear_elasticity_solver.run();
 
     EigenMatrix displacement, displacement_2;
     linear_elasticity_solver.getDisplacement( displacement );
 
-    LinearElasticity<2> linear_elasticity_solver_2( time_step, final_time, theta, degree, gravity, distributed_load, rho, n_global_refines );
+    LinearElasticity<2> linear_elasticity_solver_2( time_step, final_time, theta, degree, gravity, distributed_load, rho, E, nu, n_global_refines );
 
     while ( linear_elasticity_solver_2.isRunning() )
     {
