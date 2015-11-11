@@ -39,7 +39,7 @@
 
 #include "RightHandSide.h"
 
-namespace fsi
+namespace dealiifsi
 {
     using namespace dealii;
 

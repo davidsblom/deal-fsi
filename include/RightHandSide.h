@@ -6,7 +6,7 @@
  *   David Blom, TU Delft. All rights reserved.
  */
 
-namespace fsi
+namespace dealiifsi
 {
     using namespace dealii;
 
