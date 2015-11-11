@@ -13,6 +13,8 @@ LinearElasticity<dim>::LinearElasticity (
     double gravity,
     double distributed_load,
     double rho,
+    double E,
+    double nu,
     unsigned int n_global_refines
     )
     :
@@ -44,6 +46,8 @@ LinearElasticity<dim>::LinearElasticity (
     distributed_load( distributed_load ),
     init( false ),
     rho( rho ),
+    E( E ),
+    nu( nu ),
     dof_index_to_boundary_index(),
     traction()
 {
@@ -52,6 +56,8 @@ LinearElasticity<dim>::LinearElasticity (
     assert( theta >= 0 && theta <= 1 );
     assert( rho > 0 );
     assert( final_time > initial_time );
+    assert( E > 0 );
+    assert( nu > 0 );
 
     setup_system();
 
@@ -147,8 +153,6 @@ void LinearElasticity<dim>::assemble_system()
     std::vector<double>     lambda_values( n_q_points );
     std::vector<double>     mu_values( n_q_points );
 
-    double nu = 0.4;
-    double E = 1.4e6;
     double mu_s = E / ( 2.0 * (1.0 + nu) );
     double lambda_s = nu * E / ( (1.0 + nu) * (1.0 - 2.0 * nu) );
 

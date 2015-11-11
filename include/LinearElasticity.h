@@ -64,6 +64,8 @@ public:
             double gravity,
             double distributed_load,
             double rho,
+            double E,
+            double nu,
             unsigned int n_global_refines
             );
 
@@ -133,7 +135,7 @@ public:
 private:
 
         bool init;
-        const double rho;
+        const double rho, E, nu;
 
         std::map<unsigned int, unsigned int> dof_index_to_boundary_index;
         EigenMatrix traction;
