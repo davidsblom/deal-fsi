@@ -227,7 +227,7 @@ void LinearElasticity<dim>::assemble_system()
                     assert( dofs_per_face == fe_face_values.n_quadrature_points * dim );
 
                     for ( unsigned int q = 0; q < fe_face_values.n_quadrature_points; ++q )
-                        cell_rhs( i ) += -get_traction( component_i, local_face_dof_indices[q * dim + component_i] ) * fe_face_values.shape_value( i, q ) * fe_face_values.JxW( q );
+                        cell_rhs( i ) += get_traction( component_i, local_face_dof_indices[q * dim + component_i] ) * fe_face_values.shape_value( i, q ) * fe_face_values.JxW( q );
                 }
             }
         }
@@ -602,7 +602,7 @@ double LinearElasticity<dim>::get_traction(
     double t = time;
     double T = 0.01;
     double offset = 0.01;
-    double value = distributed_load;
+    double value = -distributed_load;
 
     if ( t - offset < T )
         value *= 0.5 - 0.5 * std::cos( M_PI * (t - offset) / T );
