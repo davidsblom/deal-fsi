@@ -39,7 +39,7 @@
 
 #include "RightHandSide.h"
 
-namespace Step23
+namespace fsi
 {
     using namespace dealii;
 

@@ -12,7 +12,7 @@
 BOOST_AUTO_TEST_CASE( polynomial_degree_test )
 {
     using namespace dealii;
-    using namespace Step23;
+    using namespace fsi;
 
     deallog.depth_console( 0 );
 
@@ -61,7 +61,7 @@ BOOST_AUTO_TEST_CASE( polynomial_degree_test )
 BOOST_AUTO_TEST_CASE( polynomial_degree_test_distributed_load )
 {
     using namespace dealii;
-    using namespace Step23;
+    using namespace fsi;
 
     deallog.depth_console( 0 );
 
@@ -110,7 +110,7 @@ BOOST_AUTO_TEST_CASE( polynomial_degree_test_distributed_load )
 BOOST_AUTO_TEST_CASE( crank_nicolson_distributed_load )
 {
     using namespace dealii;
-    using namespace Step23;
+    using namespace fsi;
 
     deallog.depth_console( 0 );
 
@@ -180,7 +180,7 @@ BOOST_AUTO_TEST_CASE( crank_nicolson_distributed_load )
 BOOST_AUTO_TEST_CASE( crank_nicolson_combined_load )
 {
     using namespace dealii;
-    using namespace Step23;
+    using namespace fsi;
 
     deallog.depth_console( 0 );
 
@@ -250,7 +250,7 @@ BOOST_AUTO_TEST_CASE( crank_nicolson_combined_load )
 BOOST_AUTO_TEST_CASE( crank_nicolson_test )
 {
     using namespace dealii;
-    using namespace Step23;
+    using namespace fsi;
 
     deallog.depth_console( 0 );
 
@@ -320,7 +320,7 @@ BOOST_AUTO_TEST_CASE( crank_nicolson_test )
 BOOST_AUTO_TEST_CASE( backward_euler )
 {
     using namespace dealii;
-    using namespace Step23;
+    using namespace fsi;
 
     deallog.depth_console( 0 );
 
@@ -387,7 +387,7 @@ BOOST_AUTO_TEST_CASE( backward_euler )
 BOOST_AUTO_TEST_CASE( theta )
 {
     using namespace dealii;
-    using namespace Step23;
+    using namespace fsi;
 
     deallog.depth_console( 0 );
 
@@ -449,7 +449,7 @@ BOOST_AUTO_TEST_CASE( theta )
 BOOST_AUTO_TEST_CASE( writePositions )
 {
     using namespace dealii;
-    using namespace Step23;
+    using namespace fsi;
 
     double time_step = 2.5e-3;
     double theta = 0.6;
@@ -478,7 +478,7 @@ BOOST_AUTO_TEST_CASE( writePositions )
 BOOST_AUTO_TEST_CASE( readPositions )
 {
     using namespace dealii;
-    using namespace Step23;
+    using namespace fsi;
 
     double time_step = 2.5e-3;
     double theta = 0.6;
@@ -507,7 +507,7 @@ BOOST_AUTO_TEST_CASE( readPositions )
 BOOST_AUTO_TEST_CASE( displacement )
 {
     using namespace dealii;
-    using namespace Step23;
+    using namespace fsi;
 
     double time_step = 2.5e-3;
     double theta = 0.6;
@@ -535,7 +535,7 @@ BOOST_AUTO_TEST_CASE( displacement )
 BOOST_AUTO_TEST_CASE( displacement_end )
 {
     using namespace dealii;
-    using namespace Step23;
+    using namespace fsi;
 
     double time_step = 2.5e-3;
     double theta = 0.6;
@@ -570,7 +570,7 @@ BOOST_AUTO_TEST_CASE( displacement_end )
 BOOST_AUTO_TEST_CASE( iterations )
 {
     using namespace dealii;
-    using namespace Step23;
+    using namespace fsi;
 
     double time_step = 2.5e-3;
     double theta = 0.6;

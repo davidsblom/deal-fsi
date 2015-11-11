@@ -6,7 +6,7 @@
  *   David Blom, TU Delft. All rights reserved.
  */
 
-namespace Step23
+namespace fsi
 {
     using namespace dealii;
 
