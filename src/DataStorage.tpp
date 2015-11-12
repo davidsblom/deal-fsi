@@ -17,7 +17,8 @@ DataStorage::DataStorage ()
     E( 0 ),
     nu( 0 ),
     output_paraview( false ),
-    output_interval( 0 )
+    output_interval( 0 ),
+    prm()
 {
     declare_parameters();
 }
