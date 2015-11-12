@@ -8,3 +8,8 @@ boost
 boost_1_55_0
 main
 eigen
+
+# Output
+*.pvtu
+*.vtu
+*.pvd
