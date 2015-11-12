@@ -48,6 +48,7 @@ LinearElasticity<dim>::LinearElasticity (
     rho( rho ),
     E( E ),
     nu( nu ),
+    output_paraview( false ),
     dof_index_to_boundary_index(),
     traction()
 {
@@ -217,7 +218,7 @@ void LinearElasticity<dim>::assemble_system()
             for ( unsigned int face = 0; face < GeometryInfo<dim>::faces_per_cell; ++face )
             {
                 if ( cell->face( face )->at_boundary() == true
-                    && cell->face( face )->boundary_id() == 3 )
+                    && cell->face( face )->boundary_id() != 0 )
                 {
                     fe_face_values.reinit( cell, face );
 
@@ -439,7 +440,9 @@ void LinearElasticity<dim>::solve_v()
 template <int dim>
 void LinearElasticity<dim>::output_results() const
 {
-    return;
+    if ( not output_paraview )
+        return;
+
     DataOut<dim> data_out;
 
     std::vector<DataComponentInterpretation::DataComponentInterpretation>
@@ -462,10 +465,24 @@ void LinearElasticity<dim>::output_results() const
     data_out.build_patches();
 
     const std::string filename = "solution-" +
-        Utilities::int_to_string( timestep_number, 3 ) +
-        ".vtk";
+        Utilities::int_to_string( timestep_number, 4 ) +
+        ".vtu";
     std::ofstream output( filename.c_str() );
-    data_out.write_vtk( output );
+    data_out.write_vtu( output );
+
+    std::vector<std::string> filenames;
+    filenames.push_back( filename );
+
+    const std::string
+        pvtu_master_filename = ("solution-" +
+        dealii::Utilities::int_to_string( timestep_number, 4 ) +
+        ".pvtu");
+    std::ofstream pvtu_master( pvtu_master_filename.c_str() );
+    data_out.write_pvtu_record( pvtu_master, filenames );
+    static std::vector<std::pair<double, std::string> > times_and_names;
+    times_and_names.push_back( std::pair<double, std::string> ( time, pvtu_master_filename ) );
+    std::ofstream pvd_output( "solution.pvd" );
+    data_out.write_pvd_record( pvd_output, times_and_names );
 }
 
 template <int dim>

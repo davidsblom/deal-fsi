@@ -90,7 +90,7 @@ BOOST_AUTO_TEST_CASE( polynomial_degree_test_distributed_load )
         n_dofs[i] = linear_elasticity_solver.n_dofs();
         solution[i] = linear_elasticity_solver.point_value();
 
-        BOOST_CHECK_CLOSE( solution[i], -0.0016910513, 0.1 );
+        BOOST_CHECK_CLOSE( solution[i], -0.0041534231108655752, 0.1 );
     }
 
     std::vector<double> error( nbComputations - 1 );
