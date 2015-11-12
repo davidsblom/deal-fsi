@@ -613,3 +613,14 @@ BOOST_AUTO_TEST_CASE( iterations )
         for ( unsigned int j = 0; j < displacement.cols(); ++j )
             BOOST_CHECK_CLOSE( displacement( i, j ), displacement_2( i, j ), 0.0001 );
 }
+
+BOOST_AUTO_TEST_CASE( configuration_file )
+{
+    using namespace dealii;
+    using namespace dealiifsi;
+
+    DataStorage data;
+    data.read_data( "deal-fsi.prm" );
+    LinearElasticity<2> linear_elasticity_solver( data );
+    linear_elasticity_solver.run();
+}

@@ -38,6 +38,7 @@
 #include <deal.II/base/utilities.h>
 
 #include "RightHandSide.h"
+#include "DataStorage.h"
 
 namespace dealiifsi
 {
@@ -55,6 +56,8 @@ namespace dealiifsi
     class LinearElasticity
     {
 public:
+
+        explicit LinearElasticity( DataStorage & data );
 
         LinearElasticity(
             double time_step,

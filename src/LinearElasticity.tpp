@@ -5,6 +5,46 @@
  */
 
 template <int dim>
+LinearElasticity<dim>::LinearElasticity ( DataStorage & data )
+    :
+    deg( data.degree ),
+    n_global_refines( data.n_global_refines ),
+    triangulation(),
+    fe( FE_Q<dim>(data.degree), dim ),
+    dof_handler( triangulation ),
+    constraints(),
+    sparsity_pattern(),
+    mass_matrix(),
+    laplace_matrix(),
+    matrix_u(),
+    matrix_v(),
+    solution_u(),
+    solution_v(),
+    old_solution_u(),
+    old_solution_v(),
+    system_rhs(),
+    body_force(),
+    old_body_force(),
+    initial_time( 0 ),
+    final_time( data.final_time ),
+    time( initial_time ),
+    time_step( data.time_step ),
+    timestep_number( 0 ),
+    theta( data.theta ),
+    gravity( data.gravity ),
+    distributed_load( data.distributed_load ),
+    init( false ),
+    rho( data.rho ),
+    E( data.E ),
+    nu( data.nu ),
+    output_paraview( data.output_paraview ),
+    dof_index_to_boundary_index(),
+    traction()
+{
+    initialize();
+}
+
+template <int dim>
 LinearElasticity<dim>::LinearElasticity (
     double time_step,
     double final_time,
