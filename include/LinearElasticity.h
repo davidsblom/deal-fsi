@@ -142,6 +142,7 @@ private:
         bool init;
         const double rho, E, nu;
         const bool output_paraview;
+        const int output_interval;
 
         std::map<unsigned int, unsigned int> dof_index_to_boundary_index;
         EigenMatrix traction;

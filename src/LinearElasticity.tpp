@@ -38,6 +38,7 @@ LinearElasticity<dim>::LinearElasticity ( DataStorage & data )
     E( data.E ),
     nu( data.nu ),
     output_paraview( data.output_paraview ),
+    output_interval( data.output_interval ),
     dof_index_to_boundary_index(),
     traction()
 {
@@ -89,6 +90,7 @@ LinearElasticity<dim>::LinearElasticity (
     E( E ),
     nu( nu ),
     output_paraview( false ),
+    output_interval( 0 ),
     dof_index_to_boundary_index(),
     traction()
 {
@@ -487,6 +489,9 @@ template <int dim>
 void LinearElasticity<dim>::output_results() const
 {
     if ( not output_paraview )
+        return;
+
+    if ( timestep_number % output_interval != 0 )
         return;
 
     DataOut<dim> data_out;
