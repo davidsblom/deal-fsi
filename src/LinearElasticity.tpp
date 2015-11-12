@@ -52,20 +52,7 @@ LinearElasticity<dim>::LinearElasticity (
     dof_index_to_boundary_index(),
     traction()
 {
-    assert( degree >= 1 );
-    assert( time_step > 0 );
-    assert( theta >= 0 && theta <= 1 );
-    assert( rho > 0 );
-    assert( final_time > initial_time );
-    assert( E > 0 );
-    assert( nu > 0 );
-
-    setup_system();
-
-    output_results();
-
-    timestep_number = 1;
-    time = initial_time + time_step;
+    initialize();
 }
 
 template <int dim>
@@ -247,6 +234,25 @@ void LinearElasticity<dim>::assemble_system()
     }
 
     constraints.condense( laplace_matrix );
+}
+
+template <int dim>
+void LinearElasticity<dim>::initialize()
+{
+    assert( deg >= 1 );
+    assert( time_step > 0 );
+    assert( theta >= 0 && theta <= 1 );
+    assert( rho > 0 );
+    assert( final_time > initial_time );
+    assert( E > 0 );
+    assert( nu > 0 );
+
+    setup_system();
+
+    output_results();
+
+    timestep_number = 1;
+    time = initial_time + time_step;
 }
 
 template <int dim>

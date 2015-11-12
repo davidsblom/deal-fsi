@@ -86,6 +86,8 @@ public:
 
         void setTraction( const EigenMatrix & traction );
 
+        void initialize();
+
         void initTimeStep();
 
         bool isRunning();
