@@ -50,6 +50,12 @@ namespace dealiifsi
         Vector<Scalar> & b
         );
 
+    template <class Scalar>
+    Vector<Scalar> operator -(
+        Vector<Scalar> & A,
+        Vector<Scalar> & B
+        );
+
     typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> EigenMatrix;
 
     template <int dim>

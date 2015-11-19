@@ -694,3 +694,14 @@ Vector<Scalar> operator *(
     A.vmult( tmp, b );
     return tmp;
 }
+
+template <class Scalar>
+Vector<Scalar> operator -(
+    Vector<Scalar> & A,
+    Vector<Scalar> & B
+    )
+{
+    Vector<Scalar> tmp = A;
+    tmp -= B;
+    return tmp;
+}
