@@ -40,7 +40,11 @@ LinearElasticity<dim>::LinearElasticity ( DataStorage & data )
     output_paraview( data.output_paraview ),
     output_interval( data.output_interval ),
     dof_index_to_boundary_index(),
-    traction()
+    traction(),
+    u_f(),
+    v_f(),
+    u_rhs(),
+    v_rhs()
 {
     initialize();
 }
@@ -92,7 +96,11 @@ LinearElasticity<dim>::LinearElasticity (
     output_paraview( false ),
     output_interval( 0 ),
     dof_index_to_boundary_index(),
-    traction()
+    traction(),
+    u_f(),
+    v_f(),
+    u_rhs(),
+    v_rhs()
 {
     initialize();
 }
@@ -149,6 +157,12 @@ void LinearElasticity<dim>::setup_system()
     system_rhs.reinit( dof_handler.n_dofs() );
     body_force.reinit( dof_handler.n_dofs() );
     old_body_force.reinit( dof_handler.n_dofs() );
+
+    // SDC time integration variables
+    u_f.reinit( dof_handler.n_dofs() );
+    v_f.reinit( dof_handler.n_dofs() );
+    u_rhs.reinit( dof_handler.n_dofs() );
+    v_rhs.reinit( dof_handler.n_dofs() );
 
     constraints.close();
 
@@ -632,6 +646,10 @@ void LinearElasticity<dim>::solve()
             system_rhs );
     }
     solve_v();
+
+    // SDC time integration variables
+    u_f = (1.0 / time_step) * (solution_u - old_solution_u - u_rhs);
+    v_f = (1.0 / time_step) * (solution_v - old_solution_v - v_rhs);
 }
 
 template <int dim>
@@ -686,11 +704,33 @@ double LinearElasticity<dim>::get_traction(
 
 template <class Scalar>
 Vector<Scalar> operator *(
-    SparseMatrix<Scalar> & A,
-    Vector<Scalar> & b
+    const SparseMatrix<Scalar> & A,
+    const Vector<Scalar> & b
     )
 {
     Vector<Scalar> tmp( b.size() );
     A.vmult( tmp, b );
+    return tmp;
+}
+
+template <class Scalar>
+Vector<Scalar> operator *(
+    const Scalar & scalar,
+    const Vector<Scalar> & vector
+    )
+{
+    Vector<Scalar> tmp = vector;
+    tmp *= scalar;
+    return tmp;
+}
+
+template <class Scalar>
+Vector<Scalar> operator -(
+    const Vector<Scalar> & A,
+    const Vector<Scalar> & B
+    )
+{
+    Vector<Scalar> tmp = A;
+    tmp -= B;
     return tmp;
 }

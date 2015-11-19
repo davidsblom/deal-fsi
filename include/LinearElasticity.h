@@ -46,8 +46,20 @@ namespace dealiifsi
 
     template <class Scalar>
     Vector<Scalar> operator *(
-        SparseMatrix<Scalar> & A,
-        Vector<Scalar> & b
+        const SparseMatrix<Scalar> & A,
+        const Vector<Scalar> & b
+        );
+
+    template <class Scalar>
+    Vector<Scalar> operator *(
+        const Scalar & scalar,
+        const Vector<Scalar> & vector
+        );
+
+    template <class Scalar>
+    Vector<Scalar> operator -(
+        const Vector<Scalar> & A,
+        const Vector<Scalar> & B
         );
 
     typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> EigenMatrix;
@@ -137,7 +149,7 @@ public:
         const double theta;
         const double gravity, distributed_load;
 
-private:
+protected:
 
         bool init;
         const double rho, E, nu;
@@ -146,6 +158,9 @@ private:
 
         std::map<unsigned int, unsigned int> dof_index_to_boundary_index;
         EigenMatrix traction;
+
+        // SDC time integration variables
+        Vector<double> u_f, v_f, u_rhs, v_rhs;
     };
 
     #include "../src/LinearElasticity.tpp"
