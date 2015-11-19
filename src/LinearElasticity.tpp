@@ -686,8 +686,8 @@ double LinearElasticity<dim>::get_traction(
 
 template <class Scalar>
 Vector<Scalar> operator *(
-    SparseMatrix<Scalar> & A,
-    Vector<Scalar> & b
+    const SparseMatrix<Scalar> & A,
+    const Vector<Scalar> & b
     )
 {
     Vector<Scalar> tmp( b.size() );
@@ -697,8 +697,8 @@ Vector<Scalar> operator *(
 
 template <class Scalar>
 Vector<Scalar> operator -(
-    Vector<Scalar> & A,
-    Vector<Scalar> & B
+    const Vector<Scalar> & A,
+    const Vector<Scalar> & B
     )
 {
     Vector<Scalar> tmp = A;
