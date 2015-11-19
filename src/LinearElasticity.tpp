@@ -603,6 +603,12 @@ void LinearElasticity<dim>::solve()
 
     system_rhs.add( theta * time_step, forcing_terms );
 
+    // SDC time integration
+    tmp = mass_matrix * v_rhs;
+    system_rhs.add( time_step, tmp );
+    tmp = mass_matrix * u_rhs;
+    system_rhs += tmp;
+
     {
         std::map<types::global_dof_index, double> boundary_values;
         VectorTools::interpolate_boundary_values( dof_handler,
@@ -632,6 +638,10 @@ void LinearElasticity<dim>::solve()
     system_rhs.add( -time_step * (1 - theta) / rho, tmp );
 
     system_rhs += forcing_terms;
+
+    // SDC time integration
+    tmp = mass_matrix * v_rhs;
+    system_rhs += tmp;
 
     {
         std::map<types::global_dof_index, double> boundary_values;
