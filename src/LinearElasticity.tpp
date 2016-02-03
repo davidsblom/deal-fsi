@@ -327,7 +327,7 @@ void LinearElasticity<dim>::initTimeStep()
     assert( !init );
 
     pcout << "Time step " << timestep_number
-              << " at t=" << time
+              << " at t = " << time
               << std::endl;
 
     init = true;
@@ -484,10 +484,6 @@ void LinearElasticity<dim>::solve_u()
     // preconditioner);
 
     A_direct.vmult( solution_u, system_rhs );
-
-    pcout << "   u-equation: " << solver_control.last_step()
-              << " CG iterations."
-              << std::endl;
 }
 
 template <int dim>
@@ -503,10 +499,6 @@ void LinearElasticity<dim>::solve_v()
     // preconditioner);
 
     A_direct.vmult( solution_v, system_rhs );
-
-    pcout << "   v-equation: " << solver_control.last_step()
-              << " CG iterations."
-              << std::endl;
 }
 
 template <int dim>
