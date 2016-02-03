@@ -33,6 +33,7 @@ LinearElasticity<dim>::LinearElasticity ( DataStorage & data )
     theta( data.theta ),
     gravity( data.gravity ),
     distributed_load( data.distributed_load ),
+    pcout( std::cout ),
     init( false ),
     rho( data.rho ),
     E( data.E ),
@@ -44,7 +45,10 @@ LinearElasticity<dim>::LinearElasticity ( DataStorage & data )
     u_f(),
     v_f(),
     u_rhs(),
-    v_rhs()
+    v_rhs(),
+    mpi_communicator (MPI_COMM_WORLD),
+    n_mpi_processes (Utilities::MPI::n_mpi_processes(mpi_communicator)),
+    this_mpi_process (Utilities::MPI::this_mpi_process(mpi_communicator))
 {
     initialize();
 }
@@ -89,6 +93,7 @@ LinearElasticity<dim>::LinearElasticity (
     theta( theta ),
     gravity( gravity ),
     distributed_load( distributed_load ),
+    pcout( std::cout ),
     init( false ),
     rho( rho ),
     E( E ),
@@ -100,7 +105,10 @@ LinearElasticity<dim>::LinearElasticity (
     u_f(),
     v_f(),
     u_rhs(),
-    v_rhs()
+    v_rhs(),
+    mpi_communicator (MPI_COMM_WORLD),
+    n_mpi_processes (Utilities::MPI::n_mpi_processes(mpi_communicator)),
+    this_mpi_process (Utilities::MPI::this_mpi_process(mpi_communicator))
 {
     initialize();
 }
@@ -127,13 +135,13 @@ void LinearElasticity<dim>::setup_system()
 
     triangulation.refine_global( n_global_refines );
 
-    std::cout << "Number of active cells: "
+    pcout << "Number of active cells: "
               << triangulation.n_active_cells()
               << std::endl;
 
     dof_handler.distribute_dofs( fe );
 
-    std::cout << "Number of degrees of freedom: "
+    pcout << "Number of degrees of freedom: "
               << dof_handler.n_dofs()
               << std::endl
               << std::endl;
@@ -303,6 +311,8 @@ void LinearElasticity<dim>::initialize()
     assert( E > 0 );
     assert( nu > 0 );
 
+    pcout.set_condition(this_mpi_process == 0);
+
     setup_system();
 
     output_results();
@@ -316,7 +326,7 @@ void LinearElasticity<dim>::initTimeStep()
 {
     assert( !init );
 
-    std::cout << "Time step " << timestep_number
+    pcout << "Time step " << timestep_number
               << " at t=" << time
               << std::endl;
 
@@ -475,7 +485,7 @@ void LinearElasticity<dim>::solve_u()
 
     A_direct.vmult( solution_u, system_rhs );
 
-    std::cout << "   u-equation: " << solver_control.last_step()
+    pcout << "   u-equation: " << solver_control.last_step()
               << " CG iterations."
               << std::endl;
 }
@@ -494,7 +504,7 @@ void LinearElasticity<dim>::solve_v()
 
     A_direct.vmult( solution_v, system_rhs );
 
-    std::cout << "   v-equation: " << solver_control.last_step()
+    pcout << "   v-equation: " << solver_control.last_step()
               << " CG iterations."
               << std::endl;
 }
@@ -681,7 +691,7 @@ double LinearElasticity<dim>::point_value() const
         vector_value
         );
 
-    std::cout << "   Point value = " << vector_value[1] << std::endl;
+    pcout << "   Point value = " << vector_value[1] << std::endl;
 
     return vector_value[1];
 }
