@@ -38,5 +38,6 @@ IF(NOT ${deal.II_FOUND})
 ENDIF()
 
 DEAL_II_INITIALIZE_CACHED_VARIABLES()
+SET( CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -std=c++11 -Wno-deprecated-declarations -Wno-literal-suffix -Wall -Wextra -Werror" )
 PROJECT(${TARGET})
 DEAL_II_INVOKE_AUTOPILOT()

@@ -14,6 +14,7 @@
 #include <deal.II/base/quadrature_lib.h>
 #include <deal.II/base/function.h>
 #include <deal.II/base/logstream.h>
+#include <deal.II/dofs/dof_renumbering.h>
 #include <deal.II/lac/sparse_direct.h>
 #include <deal.II/lac/vector.h>
 #include <deal.II/lac/full_matrix.h>
@@ -26,6 +27,7 @@
 #include <deal.II/grid/grid_generator.h>
 #include <deal.II/grid/tria_accessor.h>
 #include <deal.II/grid/tria_iterator.h>
+#include <deal.II/grid/grid_tools.h>
 #include <deal.II/dofs/dof_handler.h>
 #include <deal.II/dofs/dof_accessor.h>
 #include <deal.II/dofs/dof_tools.h>
@@ -36,6 +38,11 @@
 #include <deal.II/numerics/vector_tools.h>
 #include <deal.II/numerics/matrix_tools.h>
 #include <deal.II/base/utilities.h>
+#include <deal.II/base/conditional_ostream.h>
+#include <deal.II/lac/petsc_parallel_vector.h>
+#include <deal.II/lac/petsc_parallel_sparse_matrix.h>
+#include <deal.II/lac/petsc_solver.h>
+#include <deal.II/lac/petsc_precondition.h>
 
 #include "RightHandSide.h"
 #include "DataStorage.h"
@@ -151,6 +158,8 @@ public:
 
 protected:
 
+        ConditionalOStream pcout;
+
         bool init;
         const double rho, E, nu;
         const bool output_paraview;
@@ -161,6 +170,9 @@ protected:
 
         // SDC time integration variables
         Vector<double> u_f, v_f, u_rhs, v_rhs;
+
+        MPI_Comm mpi_communicator;
+        const unsigned int n_mpi_processes, this_mpi_process;
     };
 
     #include "../src/LinearElasticity.tpp"
