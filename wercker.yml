@@ -5,7 +5,7 @@ command-timeout: 60
 build:
     steps:
         - install-packages:
-            packages: git build-essential zlib1g-dev libqt4-dev libreadline-dev libncurses-dev libxt-dev libopenmpi-dev openmpi-bin wget cmake petsc-dev gfortran python bison
+            packages: git build-essential zlib1g-dev libreadline-dev libncurses-dev libxt-dev libopenmpi-dev openmpi-bin wget cmake petsc-dev gfortran python bison
         - script:
             name: boost
             code: |
