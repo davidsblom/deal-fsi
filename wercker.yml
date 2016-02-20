@@ -4,8 +4,11 @@ command-timeout: 60
 
 build:
     steps:
-        - install-packages:
-            packages: git build-essential zlib1g-dev libreadline-dev libncurses-dev libxt-dev libopenmpi-dev openmpi-bin wget cmake petsc-dev gfortran python bison flex
+        - script:
+            name: install packages
+            code: |
+                git build-essential zlib1g-dev libreadline-dev libncurses-dev libxt-dev libopenmpi-dev openmpi-bin wget cmake petsc-dev gfortran python bison flex python-pip
+                pip install codecov
         - script:
             name: boost
             code: |
@@ -85,7 +88,7 @@ build:
 
                 export PETSC_DIR=`pwd`
 
-                ./config/configure.py --with-shared=1 --with-x=0 --with-mpi=1 --download-hypre=1 --download-mumps --download-scalapack --download-ptscotch --download-suitesparse --download-fblaslapack=1
+                ./config/configure.py --with-shared=1 --with-x=0 --with-mpi=1
 
                 make
 
@@ -121,7 +124,7 @@ build:
                 mkdir bin
                 cd build
 
-                cmake -DCMAKE_INSTALL_PREFIX=`pwd`/../bin ..
+                cmake -DCMAKE_INSTALL_PREFIX=`pwd`/../bin -DCMAKE_BUILD_TYPE="Debug" ..
 
                 make -j 4 install
 
@@ -132,4 +135,7 @@ build:
                 cmake -DDEAL_II_DIR=dealii/bin/ .
 
                 make debug run
-                make release run
+        - script:
+            name: code coverage
+            code: |
+                codecov --token=${CODECOV_TOKEN}
