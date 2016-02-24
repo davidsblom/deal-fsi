@@ -28,10 +28,10 @@ build:
         - script:
             name: eigen
             code: |
-                wget http://bitbucket.org/eigen/eigen/get/3.2.7.tar.bz2
-                tar jxf 3.2.7.tar.bz2
-                rm -f 3.2.7.tar.bz2
-                ln -s eigen-eigen-b30b87236a1b eigen
+                wget http://bitbucket.org/eigen/eigen/get/3.2.8.tar.bz2
+                tar jxf 3.2.8.tar.bz2
+                rm -f 3.2.8.tar.bz2
+                ln -s eigen-eigen-07105f7124f9 eigen
         - script:
             name: metis
             code: |

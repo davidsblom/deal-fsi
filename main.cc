@@ -626,40 +626,46 @@ BOOST_AUTO_TEST_CASE( configuration_file )
     linear_elasticity_solver.run();
 }
 
-int main ( int argc, char* argv[] )
+int main(
+    int argc,
+    char * argv[]
+    )
 {
     try
     {
-      dealii::Utilities::MPI::MPI_InitFinalize mpi_initialization(argc, argv, 1);
+        dealii::Utilities::MPI::MPI_InitFinalize mpi_initialization( argc, argv, 1 );
 
-      boost::unit_test::test_suite* init_unit_test_suite( int argc, char* argv[] );
+        boost::unit_test::test_suite * init_unit_test_suite(
+            int argc,
+            char * argv[]
+            );
 
-      boost::unit_test::init_unit_test_func init_func = &init_unit_test_suite;
+        boost::unit_test::init_unit_test_func init_func = &init_unit_test_suite;
 
-      return ::boost::unit_test::unit_test_main( init_func, argc, argv );
+        return ::boost::unit_test::unit_test_main( init_func, argc, argv );
     }
-  catch (std::exception &exc)
+    catch ( std::exception & exc )
     {
-      std::cerr << std::endl << std::endl
-                << "----------------------------------------------------"
-                << std::endl;
-      std::cerr << "Exception on processing: " << std::endl
-                << exc.what() << std::endl
-                << "Aborting!" << std::endl
-                << "----------------------------------------------------"
-                << std::endl;
-      return 1;
+        std::cerr << std::endl << std::endl
+                  << "----------------------------------------------------"
+                  << std::endl;
+        std::cerr << "Exception on processing: " << std::endl
+                  << exc.what() << std::endl
+                  << "Aborting!" << std::endl
+                  << "----------------------------------------------------"
+                  << std::endl;
+        return 1;
     }
-  catch (...)
+    catch ( ... )
     {
-      std::cerr << std::endl << std::endl
-                << "----------------------------------------------------"
-                << std::endl;
-      std::cerr << "Unknown exception!" << std::endl
-                << "Aborting!" << std::endl
-                << "----------------------------------------------------"
-                << std::endl;
-      return 1;
+        std::cerr << std::endl << std::endl
+                  << "----------------------------------------------------"
+                  << std::endl;
+        std::cerr << "Unknown exception!" << std::endl
+                  << "Aborting!" << std::endl
+                  << "----------------------------------------------------"
+                  << std::endl;
+        return 1;
     }
-  return 0;
+    return 0;
 }

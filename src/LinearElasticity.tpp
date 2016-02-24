@@ -10,7 +10,7 @@ LinearElasticity<dim>::LinearElasticity ( DataStorage & data )
     deg( data.degree ),
     n_global_refines( data.n_global_refines ),
     triangulation(),
-    fe( FE_Q<dim>(data.degree), dim ),
+    fe( FE_Q<dim>( data.degree ), dim ),
     dof_handler( triangulation ),
     constraints(),
     sparsity_pattern(),
@@ -46,9 +46,9 @@ LinearElasticity<dim>::LinearElasticity ( DataStorage & data )
     v_f(),
     u_rhs(),
     v_rhs(),
-    mpi_communicator (MPI_COMM_WORLD),
-    n_mpi_processes (Utilities::MPI::n_mpi_processes(mpi_communicator)),
-    this_mpi_process (Utilities::MPI::this_mpi_process(mpi_communicator))
+    mpi_communicator( MPI_COMM_WORLD ),
+    n_mpi_processes( Utilities::MPI::n_mpi_processes( mpi_communicator ) ),
+    this_mpi_process( Utilities::MPI::this_mpi_process( mpi_communicator ) )
 {
     initialize();
 }
@@ -70,7 +70,7 @@ LinearElasticity<dim>::LinearElasticity (
     deg( degree ),
     n_global_refines( n_global_refines ),
     triangulation(),
-    fe( FE_Q<dim>(degree), dim ),
+    fe( FE_Q<dim>( degree ), dim ),
     dof_handler( triangulation ),
     constraints(),
     sparsity_pattern(),
@@ -106,9 +106,9 @@ LinearElasticity<dim>::LinearElasticity (
     v_f(),
     u_rhs(),
     v_rhs(),
-    mpi_communicator (MPI_COMM_WORLD),
-    n_mpi_processes (Utilities::MPI::n_mpi_processes(mpi_communicator)),
-    this_mpi_process (Utilities::MPI::this_mpi_process(mpi_communicator))
+    mpi_communicator( MPI_COMM_WORLD ),
+    n_mpi_processes( Utilities::MPI::n_mpi_processes( mpi_communicator ) ),
+    this_mpi_process( Utilities::MPI::this_mpi_process( mpi_communicator ) )
 {
     initialize();
 }
@@ -136,15 +136,15 @@ void LinearElasticity<dim>::setup_system()
     triangulation.refine_global( n_global_refines );
 
     pcout << "Number of active cells: "
-              << triangulation.n_active_cells()
-              << std::endl;
+          << triangulation.n_active_cells()
+          << std::endl;
 
     dof_handler.distribute_dofs( fe );
 
     pcout << "Number of degrees of freedom: "
-              << dof_handler.n_dofs()
-              << std::endl
-              << std::endl;
+          << dof_handler.n_dofs()
+          << std::endl
+          << std::endl;
 
     DynamicSparsityPattern dsp( dof_handler.n_dofs(), dof_handler.n_dofs() );
     DoFTools::make_sparsity_pattern( dof_handler, dsp );
@@ -155,8 +155,61 @@ void LinearElasticity<dim>::setup_system()
     matrix_u.reinit( sparsity_pattern );
     matrix_v.reinit( sparsity_pattern );
 
-    MatrixCreator::create_mass_matrix( dof_handler, QGauss<dim>( 3 ),
-        mass_matrix );
+    QGauss<dim>  quadrature_formula( deg + 1 );
+
+    FEValues<dim> fe_values( fe, quadrature_formula,
+        update_values | update_gradients |
+        update_quadrature_points | update_JxW_values );
+
+    QGauss<dim - 1>  quadrature_formula_face( deg + 1 );
+    FEFaceValues<dim> fe_face_values( fe, quadrature_formula_face, update_values | update_quadrature_points | update_JxW_values );
+
+    const unsigned int dofs_per_cell = fe.dofs_per_cell;
+    const unsigned int n_q_points = quadrature_formula.size();
+
+    FullMatrix<double>   cell_matrix( dofs_per_cell, dofs_per_cell );
+    Vector<double> cell_rhs( dofs_per_cell );
+
+    std::vector<types::global_dof_index> local_dof_indices( dofs_per_cell );
+
+    // Now we can begin with the loop over all cells:
+    typename DoFHandler<dim>::active_cell_iterator cell = dof_handler.begin_active(),
+    endc = dof_handler.end();
+
+    for (; cell != endc; ++cell )
+    {
+        cell_matrix = 0;
+        cell_rhs = 0;
+
+        fe_values.reinit( cell );
+
+        for ( unsigned int i = 0; i < dofs_per_cell; ++i )
+        {
+            const unsigned int component_i = fe.system_to_component_index( i ).first;
+            const double * phi_i = &fe_values.shape_value( i, 0 );
+
+            for ( unsigned int j = 0; j < dofs_per_cell; ++j )
+            {
+                if ( (fe.system_to_component_index( j ).first == component_i) )
+                {
+                    const double * phi_j = &fe_values.shape_value( j, 0 );
+
+                    for ( unsigned int q_point = 0; q_point < n_q_points; ++q_point )
+                    {
+                        cell_matrix( i, j ) += phi_i[q_point] * phi_j[q_point] * fe_values.JxW( q_point );
+                    }
+                }
+            }
+        }
+
+        cell->get_dof_indices( local_dof_indices );
+
+        for ( unsigned int i = 0; i < dofs_per_cell; ++i )
+        {
+            for ( unsigned int j = 0; j < dofs_per_cell; ++j )
+                mass_matrix.add( local_dof_indices[i], local_dof_indices[j], cell_matrix( i, j ) );
+        }
+    }
 
     solution_u.reinit( dof_handler.n_dofs() );
     solution_v.reinit( dof_handler.n_dofs() );
@@ -242,19 +295,19 @@ void LinearElasticity<dim>::assemble_system()
 
                         (
                         (fe_values.shape_grad( i, q_point )[component_i] *
-                            fe_values.shape_grad( j, q_point )[component_j] *
-                            lambda_values[q_point])
+                        fe_values.shape_grad( j, q_point )[component_j] *
+                        lambda_values[q_point])
                         +
                         (fe_values.shape_grad( i, q_point )[component_j] *
-                            fe_values.shape_grad( j, q_point )[component_i] *
-                            mu_values[q_point])
+                        fe_values.shape_grad( j, q_point )[component_i] *
+                        mu_values[q_point])
                         +
 
                         ( (component_i == component_j) ?
-                            (fe_values.shape_grad( i, q_point ) *
-                                fe_values.shape_grad( j, q_point ) *
-                                mu_values[q_point])  :
-                            0 )
+                        (fe_values.shape_grad( i, q_point ) *
+                        fe_values.shape_grad( j, q_point ) *
+                        mu_values[q_point])  :
+                        0 )
                         )
                         *
                         fe_values.JxW( q_point );
@@ -311,7 +364,7 @@ void LinearElasticity<dim>::initialize()
     assert( E > 0 );
     assert( nu > 0 );
 
-    pcout.set_condition(this_mpi_process == 0);
+    pcout.set_condition( this_mpi_process == 0 );
 
     setup_system();
 
@@ -327,8 +380,8 @@ void LinearElasticity<dim>::initTimeStep()
     assert( !init );
 
     pcout << "Time step " << timestep_number
-              << " at t = " << time
-              << std::endl;
+          << " at t = " << time
+          << std::endl;
 
     init = true;
 }
