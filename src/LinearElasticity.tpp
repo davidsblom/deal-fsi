@@ -17,7 +17,6 @@ LinearElasticity<dim>::LinearElasticity ( DataStorage & data )
     mass_matrix(),
     laplace_matrix(),
     matrix_u(),
-    matrix_v(),
     solution_u(),
     solution_v(),
     old_solution_u(),
@@ -77,7 +76,6 @@ LinearElasticity<dim>::LinearElasticity (
     mass_matrix(),
     laplace_matrix(),
     matrix_u(),
-    matrix_v(),
     solution_u(),
     solution_v(),
     old_solution_u(),
@@ -153,7 +151,6 @@ void LinearElasticity<dim>::setup_system()
     mass_matrix.reinit( sparsity_pattern );
     laplace_matrix.reinit( sparsity_pattern );
     matrix_u.reinit( sparsity_pattern );
-    matrix_v.reinit( sparsity_pattern );
 
     QGauss<dim>  quadrature_formula( deg + 1 );
 
@@ -235,6 +232,7 @@ void LinearElasticity<dim>::assemble_system()
 {
     body_force.reinit( dof_handler.n_dofs() );
     laplace_matrix.reinit( sparsity_pattern );
+    matrix_u.reinit( sparsity_pattern );
 
     QGauss<dim>  quadrature_formula( deg + 1 );
 
@@ -262,6 +260,10 @@ void LinearElasticity<dim>::assemble_system()
     double lambda_s = nu * E / ( (1.0 + nu) * (1.0 - 2.0 * nu) );
 
     ConstantFunction<dim> lambda( lambda_s ), mu( mu_s );
+
+    RightHandSide<dim> right_hand_side( gravity );
+    right_hand_side.set_time( time );
+    std::vector<Vector<double> > rhs_values( n_q_points, Vector<double>( dim ) );
 
     // Now we can begin with the loop over all cells:
     typename DoFHandler<dim>::active_cell_iterator cell = dof_handler.begin_active(),
@@ -332,9 +334,21 @@ void LinearElasticity<dim>::assemble_system()
                     assert( dofs_per_face == fe_face_values.n_quadrature_points * dim );
 
                     for ( unsigned int q = 0; q < fe_face_values.n_quadrature_points; ++q )
+                    {
                         cell_rhs( i ) += get_traction( component_i, local_face_dof_indices[q * dim + component_i] ) * fe_face_values.shape_value( i, q ) * fe_face_values.JxW( q );
+                    }
                 }
             }
+        }
+
+        right_hand_side.vector_value_list( fe_values.get_quadrature_points(), rhs_values );
+
+        for ( unsigned int i = 0; i < dofs_per_cell; ++i )
+        {
+            const unsigned int component_i = fe.system_to_component_index( i ).first;
+
+            for ( unsigned int q_point = 0; q_point < n_q_points; ++q_point )
+                cell_rhs( i ) += fe_values.shape_value( i, q_point ) * rhs_values[q_point]( component_i ) * fe_values.JxW( q_point );
         }
 
         cell->get_dof_indices( local_dof_indices );
@@ -351,6 +365,72 @@ void LinearElasticity<dim>::assemble_system()
     }
 
     constraints.condense( laplace_matrix );
+
+    cell = dof_handler.begin_active();
+
+    for (; cell != endc; ++cell )
+    {
+        cell_matrix = 0;
+        cell_rhs = 0;
+
+        fe_values.reinit( cell );
+
+        lambda.value_list( fe_values.get_quadrature_points(), lambda_values );
+        mu.value_list( fe_values.get_quadrature_points(), mu_values );
+
+        for ( unsigned int i = 0; i < dofs_per_cell; ++i )
+        {
+            const unsigned int component_i = fe.system_to_component_index( i ).first;
+            const double * phi_i = &fe_values.shape_value( i, 0 );
+
+            for ( unsigned int j = 0; j < dofs_per_cell; ++j )
+            {
+                const unsigned int component_j = fe.system_to_component_index( j ).first;
+                const double * phi_j = &fe_values.shape_value( j, 0 );
+
+                for ( unsigned int q_point = 0; q_point < n_q_points;
+                    ++q_point )
+                {
+                    if ( (fe.system_to_component_index( j ).first == component_i) )
+                        cell_matrix( i, j ) += phi_i[q_point] * phi_j[q_point] * fe_values.JxW( q_point );
+
+                    cell_matrix( i, j )
+                        +=
+                        theta * theta * time_step * time_step / rho *
+                        (
+                        (fe_values.shape_grad( i, q_point )[component_i] *
+                        fe_values.shape_grad( j, q_point )[component_j] *
+                        lambda_values[q_point])
+                        +
+                        (fe_values.shape_grad( i, q_point )[component_j] *
+                        fe_values.shape_grad( j, q_point )[component_i] *
+                        mu_values[q_point])
+                        +
+
+                        ( (component_i == component_j) ?
+                        (fe_values.shape_grad( i, q_point ) *
+                        fe_values.shape_grad( j, q_point ) *
+                        mu_values[q_point])  :
+                        0 )
+                        )
+                        *
+                        fe_values.JxW( q_point );
+                }
+            }
+        }
+
+        cell->get_dof_indices( local_dof_indices );
+
+        for ( unsigned int i = 0; i < dofs_per_cell; ++i )
+        {
+            for ( unsigned int j = 0; j < dofs_per_cell; ++j )
+                matrix_u.add( local_dof_indices[i],
+                    local_dof_indices[j],
+                    cell_matrix( i, j ) );
+        }
+    }
+
+    constraints.condense( matrix_u );
 }
 
 template <int dim>
@@ -546,9 +626,9 @@ void LinearElasticity<dim>::solve_v()
     SolverCG<>              cg( solver_control );
 
     SparseDirectUMFPACK A_direct;
-    A_direct.initialize( matrix_v );
+    A_direct.initialize( mass_matrix );
 
-    // cg.solve (matrix_v, solution_v, system_rhs,
+    // cg.solve (mass_matrix, solution_v, system_rhs,
     // preconditioner);
 
     A_direct.vmult( solution_v, system_rhs );
@@ -629,31 +709,18 @@ void LinearElasticity<dim>::solve()
 
     assemble_system();
 
-    // mass_matrix.vmult (system_rhs, old_solution_u);
-    system_rhs = mass_matrix * old_solution_u;
+    mass_matrix.vmult( system_rhs, old_solution_u );
 
-    // mass_matrix.vmult (tmp, old_solution_v);
-    tmp = mass_matrix * old_solution_v;
+    mass_matrix.vmult( tmp, old_solution_v );
     system_rhs.add( time_step, tmp );
 
-    // laplace_matrix.vmult (tmp, old_solution_u);
-    tmp = laplace_matrix * old_solution_u;
+    laplace_matrix.vmult( tmp, old_solution_u );
     system_rhs.add( -theta * (1 - theta) * time_step * time_step / rho, tmp );
 
-    RightHandSide<dim> rhs_function( gravity );
-    rhs_function.set_time( time );
-    VectorTools::create_right_hand_side( dof_handler, QGauss<dim>( 2 ),
-        rhs_function, tmp );
-    tmp += body_force;
-    forcing_terms = tmp;
+    forcing_terms = body_force;
     forcing_terms *= theta * time_step;
 
-    rhs_function.set_time( time - time_step );
-    VectorTools::create_right_hand_side( dof_handler, QGauss<dim>( 2 ),
-        rhs_function, tmp );
-
-    tmp += old_body_force;
-    forcing_terms.add( (1 - theta) * time_step, tmp );
+    forcing_terms.add( (1 - theta) * time_step, old_body_force );
     forcing_terms *= 1.0 / rho;
 
     system_rhs.add( theta * time_step, forcing_terms );
@@ -671,8 +738,6 @@ void LinearElasticity<dim>::solve()
             ZeroFunction<dim>( dim ),
             boundary_values );
 
-        matrix_u.copy_from( mass_matrix );
-        matrix_u.add( theta * theta * time_step * time_step / rho, laplace_matrix );
         MatrixTools::apply_boundary_values( boundary_values,
             matrix_u,
             solution_u,
@@ -680,16 +745,13 @@ void LinearElasticity<dim>::solve()
     }
     solve_u();
 
-    // laplace_matrix.vmult (system_rhs, solution_u);
-    system_rhs = laplace_matrix * solution_u;
+    laplace_matrix.vmult( system_rhs, solution_u );
     system_rhs *= -theta * time_step / rho;
 
-    // mass_matrix.vmult (tmp, old_solution_v);
-    tmp = mass_matrix * old_solution_v;
+    mass_matrix.vmult( tmp, old_solution_v );
     system_rhs += tmp;
 
-    // laplace_matrix.vmult (tmp, old_solution_u);
-    tmp = laplace_matrix * old_solution_u;
+    laplace_matrix.vmult( tmp, old_solution_u );
     system_rhs.add( -time_step * (1 - theta) / rho, tmp );
 
     system_rhs += forcing_terms;
@@ -704,17 +766,25 @@ void LinearElasticity<dim>::solve()
             0,
             ZeroFunction<dim>( dim ),
             boundary_values );
-        matrix_v.copy_from( mass_matrix );
         MatrixTools::apply_boundary_values( boundary_values,
-            matrix_v,
+            mass_matrix,
             solution_v,
             system_rhs );
     }
     solve_v();
 
     // SDC time integration variables
-    u_f = (1.0 / time_step) * (solution_u - old_solution_u - u_rhs);
-    v_f = (1.0 / time_step) * (solution_v - old_solution_v - v_rhs);
+    // u_f = (1.0 / time_step) * (solution_u - old_solution_u - u_rhs);
+    u_f = solution_u;
+    u_f -= old_solution_u;
+    u_f -= u_rhs;
+    u_f *= 1.0 / time_step;
+
+    // v_f = (1.0 / time_step) * (solution_v - old_solution_v - v_rhs);
+    v_f = solution_v;
+    v_f -= old_solution_v;
+    v_f -= v_rhs;
+    v_f *= 1.0 / time_step;
 }
 
 template <int dim>
