@@ -261,6 +261,10 @@ void LinearElasticity<dim>::assemble_system()
 
     ConstantFunction<dim> lambda( lambda_s ), mu( mu_s );
 
+    RightHandSide<dim> right_hand_side( gravity );
+    right_hand_side.set_time( time );
+    std::vector<Vector<double> > rhs_values( n_q_points, Vector<double>( dim ) );
+
     // Now we can begin with the loop over all cells:
     typename DoFHandler<dim>::active_cell_iterator cell = dof_handler.begin_active(),
     endc = dof_handler.end();
@@ -330,9 +334,21 @@ void LinearElasticity<dim>::assemble_system()
                     assert( dofs_per_face == fe_face_values.n_quadrature_points * dim );
 
                     for ( unsigned int q = 0; q < fe_face_values.n_quadrature_points; ++q )
+                    {
                         cell_rhs( i ) += get_traction( component_i, local_face_dof_indices[q * dim + component_i] ) * fe_face_values.shape_value( i, q ) * fe_face_values.JxW( q );
+                    }
                 }
             }
+        }
+
+        right_hand_side.vector_value_list( fe_values.get_quadrature_points(), rhs_values );
+
+        for ( unsigned int i = 0; i < dofs_per_cell; ++i )
+        {
+            const unsigned int component_i = fe.system_to_component_index( i ).first;
+
+            for ( unsigned int q_point = 0; q_point < n_q_points; ++q_point )
+                cell_rhs( i ) += fe_values.shape_value( i, q_point ) * rhs_values[q_point]( component_i ) * fe_values.JxW( q_point );
         }
 
         cell->get_dof_indices( local_dof_indices );
@@ -693,31 +709,18 @@ void LinearElasticity<dim>::solve()
 
     assemble_system();
 
-    // mass_matrix.vmult (system_rhs, old_solution_u);
-    system_rhs = mass_matrix * old_solution_u;
+    mass_matrix.vmult( system_rhs, old_solution_u );
 
-    // mass_matrix.vmult (tmp, old_solution_v);
-    tmp = mass_matrix * old_solution_v;
+    mass_matrix.vmult( tmp, old_solution_v );
     system_rhs.add( time_step, tmp );
 
-    // laplace_matrix.vmult (tmp, old_solution_u);
-    tmp = laplace_matrix * old_solution_u;
+    laplace_matrix.vmult( tmp, old_solution_u );
     system_rhs.add( -theta * (1 - theta) * time_step * time_step / rho, tmp );
 
-    RightHandSide<dim> rhs_function( gravity );
-    rhs_function.set_time( time );
-    VectorTools::create_right_hand_side( dof_handler, QGauss<dim>( 2 ),
-        rhs_function, tmp );
-    tmp += body_force;
-    forcing_terms = tmp;
+    forcing_terms = body_force;
     forcing_terms *= theta * time_step;
 
-    rhs_function.set_time( time - time_step );
-    VectorTools::create_right_hand_side( dof_handler, QGauss<dim>( 2 ),
-        rhs_function, tmp );
-
-    tmp += old_body_force;
-    forcing_terms.add( (1 - theta) * time_step, tmp );
+    forcing_terms.add( (1 - theta) * time_step, old_body_force );
     forcing_terms *= 1.0 / rho;
 
     system_rhs.add( theta * time_step, forcing_terms );
@@ -742,16 +745,13 @@ void LinearElasticity<dim>::solve()
     }
     solve_u();
 
-    // laplace_matrix.vmult (system_rhs, solution_u);
-    system_rhs = laplace_matrix * solution_u;
+    laplace_matrix.vmult( system_rhs, solution_u );
     system_rhs *= -theta * time_step / rho;
 
-    // mass_matrix.vmult (tmp, old_solution_v);
-    tmp = mass_matrix * old_solution_v;
+    mass_matrix.vmult( tmp, old_solution_v );
     system_rhs += tmp;
 
-    // laplace_matrix.vmult (tmp, old_solution_u);
-    tmp = laplace_matrix * old_solution_u;
+    laplace_matrix.vmult( tmp, old_solution_u );
     system_rhs.add( -time_step * (1 - theta) / rho, tmp );
 
     system_rhs += forcing_terms;
@@ -774,8 +774,17 @@ void LinearElasticity<dim>::solve()
     solve_v();
 
     // SDC time integration variables
-    u_f = (1.0 / time_step) * (solution_u - old_solution_u - u_rhs);
-    v_f = (1.0 / time_step) * (solution_v - old_solution_v - v_rhs);
+    // u_f = (1.0 / time_step) * (solution_u - old_solution_u - u_rhs);
+    u_f = solution_u;
+    u_f -= old_solution_u;
+    u_f -= u_rhs;
+    u_f *= 1.0 / time_step;
+
+    // v_f = (1.0 / time_step) * (solution_v - old_solution_v - v_rhs);
+    v_f = solution_v;
+    v_f -= old_solution_v;
+    v_f -= v_rhs;
+    v_f *= 1.0 / time_step;
 }
 
 template <int dim>
