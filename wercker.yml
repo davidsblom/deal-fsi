@@ -15,11 +15,9 @@ build:
             code: |
                 export METIS_VERSION=5.1.0
                 export PARMETIS_VERSION=4.0.3
-                export PETSC_VERSION=3.6.3
                 export DEALII_VERSION=8.3.0
                 export BOOST_VERSION=1_55_0
                 export BOOST_VERSION_DOT=1.55.0
-                export PETSC_ARCH=x86_64
 
                 wget -O boost_${BOOST_VERSION}.tar.bz2 http://downloads.sourceforge.net/project/boost/boost/${BOOST_VERSION_DOT}/boost_${BOOST_VERSION}.tar.bz2
                 tar jxf boost_${BOOST_VERSION}.tar.bz2
@@ -28,10 +26,10 @@ build:
         - script:
             name: eigen
             code: |
-                wget http://bitbucket.org/eigen/eigen/get/3.2.7.tar.bz2
-                tar jxf 3.2.7.tar.bz2
-                rm -f 3.2.7.tar.bz2
-                ln -s eigen-eigen-b30b87236a1b eigen
+                wget http://bitbucket.org/eigen/eigen/get/3.2.8.tar.bz2
+                tar jxf 3.2.8.tar.bz2
+                rm -f 3.2.8.tar.bz2
+                ln -s eigen-eigen-07105f7124f9 eigen
         - script:
             name: metis
             code: |
@@ -72,34 +70,9 @@ build:
 
                 make install
         - script:
-            name: petsc
-            code: |
-                export PETSC_VERSION=3.6.3
-                export PETSC_ARCH=x86_64
-
-                wget http://ftp.mcs.anl.gov/pub/petsc/release-snapshots/petsc-${PETSC_VERSION}.tar.gz
-
-                tar -zxf petsc-${PETSC_VERSION}.tar.gz
-
-                rm petsc-${PETSC_VERSION}.tar.gz
-
-                ln -s petsc-${PETSC_VERSION} petsc
-
-                cd petsc-${PETSC_VERSION}
-
-                export PETSC_DIR=`pwd`
-
-                ./config/configure.py --with-shared=1 --with-x=0 --with-mpi=1
-
-                make
-
-                make test
-        - script:
             name: deal.II
             code: |
-                export PETSC_VERSION=3.6.3
                 export DEALII_VERSION=8.3.0
-                export PETSC_ARCH=x86_64
 
                 wget https://github.com/dealii/dealii/releases/download/v${DEALII_VERSION}/dealii-${DEALII_VERSION}.tar.gz
 
@@ -108,10 +81,6 @@ build:
                 ln -s dealii-${DEALII_VERSION} dealii
 
                 rm dealii-${DEALII_VERSION}.tar.gz
-
-                export PETSC_DIR=`pwd`/petsc
-                cd $PETSC_DIR
-                cd ..
                 export CC=mpicc
                 export CXX=mpicxx
                 export F77=mpif77
