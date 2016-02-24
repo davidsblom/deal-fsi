@@ -17,7 +17,6 @@ LinearElasticity<dim>::LinearElasticity ( DataStorage & data )
     mass_matrix(),
     laplace_matrix(),
     matrix_u(),
-    matrix_v(),
     solution_u(),
     solution_v(),
     old_solution_u(),
@@ -77,7 +76,6 @@ LinearElasticity<dim>::LinearElasticity (
     mass_matrix(),
     laplace_matrix(),
     matrix_u(),
-    matrix_v(),
     solution_u(),
     solution_v(),
     old_solution_u(),
@@ -153,7 +151,6 @@ void LinearElasticity<dim>::setup_system()
     mass_matrix.reinit( sparsity_pattern );
     laplace_matrix.reinit( sparsity_pattern );
     matrix_u.reinit( sparsity_pattern );
-    matrix_v.reinit( sparsity_pattern );
 
     QGauss<dim>  quadrature_formula( deg + 1 );
 
@@ -613,9 +610,9 @@ void LinearElasticity<dim>::solve_v()
     SolverCG<>              cg( solver_control );
 
     SparseDirectUMFPACK A_direct;
-    A_direct.initialize( matrix_v );
+    A_direct.initialize( mass_matrix );
 
-    // cg.solve (matrix_v, solution_v, system_rhs,
+    // cg.solve (mass_matrix, solution_v, system_rhs,
     // preconditioner);
 
     A_direct.vmult( solution_v, system_rhs );
@@ -769,9 +766,8 @@ void LinearElasticity<dim>::solve()
             0,
             ZeroFunction<dim>( dim ),
             boundary_values );
-        matrix_v.copy_from( mass_matrix );
         MatrixTools::apply_boundary_values( boundary_values,
-            matrix_v,
+            mass_matrix,
             solution_v,
             system_rhs );
     }

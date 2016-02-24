@@ -143,7 +143,6 @@ public:
         SparseMatrix<double> mass_matrix;
         SparseMatrix<double> laplace_matrix;
         SparseMatrix<double> matrix_u;
-        SparseMatrix<double> matrix_v;
 
         Vector<double>       solution_u, solution_v;
         Vector<double>       old_solution_u, old_solution_v;
