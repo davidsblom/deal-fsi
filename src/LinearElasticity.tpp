@@ -235,6 +235,7 @@ void LinearElasticity<dim>::assemble_system()
 {
     body_force.reinit( dof_handler.n_dofs() );
     laplace_matrix.reinit( sparsity_pattern );
+    matrix_u.reinit( sparsity_pattern );
 
     QGauss<dim>  quadrature_formula( deg + 1 );
 
@@ -351,6 +352,72 @@ void LinearElasticity<dim>::assemble_system()
     }
 
     constraints.condense( laplace_matrix );
+
+    cell = dof_handler.begin_active();
+
+    for (; cell != endc; ++cell )
+    {
+        cell_matrix = 0;
+        cell_rhs = 0;
+
+        fe_values.reinit( cell );
+
+        lambda.value_list( fe_values.get_quadrature_points(), lambda_values );
+        mu.value_list( fe_values.get_quadrature_points(), mu_values );
+
+        for ( unsigned int i = 0; i < dofs_per_cell; ++i )
+        {
+            const unsigned int component_i = fe.system_to_component_index( i ).first;
+            const double * phi_i = &fe_values.shape_value( i, 0 );
+
+            for ( unsigned int j = 0; j < dofs_per_cell; ++j )
+            {
+                const unsigned int component_j = fe.system_to_component_index( j ).first;
+                const double * phi_j = &fe_values.shape_value( j, 0 );
+
+                for ( unsigned int q_point = 0; q_point < n_q_points;
+                    ++q_point )
+                {
+                    if ( (fe.system_to_component_index( j ).first == component_i) )
+                        cell_matrix( i, j ) += phi_i[q_point] * phi_j[q_point] * fe_values.JxW( q_point );
+
+                    cell_matrix( i, j )
+                        +=
+                        theta * theta * time_step * time_step / rho *
+                        (
+                        (fe_values.shape_grad( i, q_point )[component_i] *
+                        fe_values.shape_grad( j, q_point )[component_j] *
+                        lambda_values[q_point])
+                        +
+                        (fe_values.shape_grad( i, q_point )[component_j] *
+                        fe_values.shape_grad( j, q_point )[component_i] *
+                        mu_values[q_point])
+                        +
+
+                        ( (component_i == component_j) ?
+                        (fe_values.shape_grad( i, q_point ) *
+                        fe_values.shape_grad( j, q_point ) *
+                        mu_values[q_point])  :
+                        0 )
+                        )
+                        *
+                        fe_values.JxW( q_point );
+                }
+            }
+        }
+
+        cell->get_dof_indices( local_dof_indices );
+
+        for ( unsigned int i = 0; i < dofs_per_cell; ++i )
+        {
+            for ( unsigned int j = 0; j < dofs_per_cell; ++j )
+                matrix_u.add( local_dof_indices[i],
+                    local_dof_indices[j],
+                    cell_matrix( i, j ) );
+        }
+    }
+
+    constraints.condense( matrix_u );
 }
 
 template <int dim>
@@ -671,8 +738,6 @@ void LinearElasticity<dim>::solve()
             ZeroFunction<dim>( dim ),
             boundary_values );
 
-        matrix_u.copy_from( mass_matrix );
-        matrix_u.add( theta * theta * time_step * time_step / rho, laplace_matrix );
         MatrixTools::apply_boundary_values( boundary_values,
             matrix_u,
             solution_u,
