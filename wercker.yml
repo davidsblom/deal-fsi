@@ -105,11 +105,13 @@ build:
                 cmake -DDEAL_II_DIR=dealii/bin/ .
                 make
         - script:
-            name: run test suite
-            code: ./main
-        - script:
             name: run test suite with MPI
             code: mpirun -np 2 ./main
+        - script:
+            name: run test suite
+            code: | 
+                lcov --directory . --zerocounters # reset code coverage counters
+                ./main
         - script:
             name: code coverage
             code: |
