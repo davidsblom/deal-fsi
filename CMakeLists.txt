@@ -38,7 +38,7 @@ IF(NOT ${deal.II_FOUND})
 ENDIF()
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O0 -DEIGEN_INITIALIZE_MATRICES_BY_NAN") # debug, no optimisation
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --coverage") # enabling coverage
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --coverage -fprofile-arcs -ftest-coverage") # enabling coverage
 
 DEAL_II_INITIALIZE_CACHED_VARIABLES()
 SET( CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -std=c++11 -Wno-deprecated-declarations -Wno-literal-suffix -Wall -Wextra -Werror" )
