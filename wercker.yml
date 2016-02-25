@@ -100,11 +100,18 @@ build:
 
                 make -j 4 test
         - script:
-            name: deal-fsi
+            name: compile deal-fsi
             code: |
                 cmake -DDEAL_II_DIR=dealii/bin/ .
 
-                make debug run
+                make
+                mpirun -np 2 ./main
+        - script:
+            name: run test suite
+            code: ./main
+        - script:
+            name: run test suite with MPI
+            code: mpirun -np 2 ./main
         - script:
             name: code coverage
             code: |
