@@ -103,7 +103,7 @@ build:
             name: compile deal-fsi
             code: |
                 cmake -DDEAL_II_DIR=dealii/bin/ .
-                make
+                make debug
         - script:
             name: run test suite with MPI
             code: mpirun -np 2 ./main
