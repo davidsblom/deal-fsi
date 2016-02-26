@@ -141,14 +141,9 @@ BOOST_AUTO_TEST_CASE( crank_nicolson_distributed_load )
         if ( i > 0 )
             assert( nbTimeSteps[i - 1] * 2 == linear_elasticity_solver.timestep_number );
 
-        double l2norm = 0;
+        Vector<double> localized_solution( linear_elasticity_solver.solution_v );
 
-        for ( unsigned int i = 0; i < linear_elasticity_solver.solution_v.size(); ++i )
-            l2norm += linear_elasticity_solver.solution_v[i] * linear_elasticity_solver.solution_v[i];
-
-        l2norm = std::sqrt( l2norm );
-
-        solution_l2_norm[i] = l2norm;
+        solution_l2_norm[i] = localized_solution.l2_norm();
         nbTimeSteps[i] = linear_elasticity_solver.timestep_number;
     }
 
@@ -211,14 +206,9 @@ BOOST_AUTO_TEST_CASE( crank_nicolson_combined_load )
         if ( i > 0 )
             assert( nbTimeSteps[i - 1] * 2 == linear_elasticity_solver.timestep_number );
 
-        double l2norm = 0;
+        Vector<double> localized_solution( linear_elasticity_solver.solution_v );
 
-        for ( unsigned int i = 0; i < linear_elasticity_solver.solution_v.size(); ++i )
-            l2norm += linear_elasticity_solver.solution_v[i] * linear_elasticity_solver.solution_v[i];
-
-        l2norm = std::sqrt( l2norm );
-
-        solution_l2_norm[i] = l2norm;
+        solution_l2_norm[i] = localized_solution.l2_norm();
         nbTimeSteps[i] = linear_elasticity_solver.timestep_number;
     }
 
@@ -281,14 +271,9 @@ BOOST_AUTO_TEST_CASE( crank_nicolson_test )
         if ( i > 0 )
             assert( nbTimeSteps[i - 1] * 2 == linear_elasticity_solver.timestep_number );
 
-        double l2norm = 0;
+        Vector<double> localized_solution( linear_elasticity_solver.solution_v );
 
-        for ( unsigned int i = 0; i < linear_elasticity_solver.solution_v.size(); ++i )
-            l2norm += linear_elasticity_solver.solution_v[i] * linear_elasticity_solver.solution_v[i];
-
-        l2norm = std::sqrt( l2norm );
-
-        solution_l2_norm[i] = l2norm;
+        solution_l2_norm[i] = localized_solution.l2_norm();
         nbTimeSteps[i] = linear_elasticity_solver.timestep_number;
     }
 
@@ -351,14 +336,9 @@ BOOST_AUTO_TEST_CASE( backward_euler )
         if ( i > 0 )
             assert( nbTimeSteps[i - 1] * 2 == linear_elasticity_solver.timestep_number );
 
-        double l2norm = 0;
+        Vector<double> localized_solution( linear_elasticity_solver.solution_v );
 
-        for ( unsigned int i = 0; i < linear_elasticity_solver.solution_v.size(); ++i )
-            l2norm += linear_elasticity_solver.solution_v[i] * linear_elasticity_solver.solution_v[i];
-
-        l2norm = std::sqrt( l2norm );
-
-        solution_l2_norm[i] = l2norm;
+        solution_l2_norm[i] = localized_solution.l2_norm();
         nbTimeSteps[i] = linear_elasticity_solver.timestep_number;
     }
 
@@ -418,14 +398,9 @@ BOOST_AUTO_TEST_CASE( theta )
         if ( i > 0 )
             assert( nbTimeSteps[i - 1] * 2 == linear_elasticity_solver.timestep_number );
 
-        double l2norm = 0;
+        Vector<double> localized_solution( linear_elasticity_solver.solution_v );
 
-        for ( unsigned int i = 0; i < linear_elasticity_solver.solution_v.size(); ++i )
-            l2norm += linear_elasticity_solver.solution_v[i] * linear_elasticity_solver.solution_v[i];
-
-        l2norm = std::sqrt( l2norm );
-
-        solution_l2_norm[i] = l2norm;
+        solution_l2_norm[i] = localized_solution.l2_norm();
         nbTimeSteps[i] = linear_elasticity_solver.timestep_number;
     }
 
@@ -468,12 +443,19 @@ BOOST_AUTO_TEST_CASE( writePositions )
     EigenMatrix writePositions;
     linear_elasticity_solver.getWritePositions( writePositions );
 
+    MPI_Comm mpi_communicator( MPI_COMM_WORLD );
+    const unsigned int n_mpi_processes = Utilities::MPI::n_mpi_processes( mpi_communicator );
+
     BOOST_CHECK_EQUAL( writePositions.cols(), 2 );
     BOOST_CHECK_GE( writePositions.rows(), 0 );
-    BOOST_CHECK_CLOSE( writePositions( 0, 0 ), 0.251109, 0.1 );
-    BOOST_CHECK_CLOSE( writePositions( 0, 1 ), 0.19, 0.1 );
-    BOOST_CHECK_CLOSE( writePositions( 1, 0 ), 0.2569, 0.1 );
-    BOOST_CHECK_CLOSE( writePositions( 1, 1 ), 0.19, 0.1 );
+
+    if ( n_mpi_processes == 1 )
+    {
+        BOOST_CHECK_CLOSE( writePositions( 0, 0 ), 0.251109, 0.1 );
+        BOOST_CHECK_CLOSE( writePositions( 0, 1 ), 0.19, 0.1 );
+        BOOST_CHECK_CLOSE( writePositions( 1, 0 ), 0.2569, 0.1 );
+        BOOST_CHECK_CLOSE( writePositions( 1, 1 ), 0.19, 0.1 );
+    }
 }
 
 BOOST_AUTO_TEST_CASE( readPositions )
@@ -497,12 +479,19 @@ BOOST_AUTO_TEST_CASE( readPositions )
     EigenMatrix readPositions;
     linear_elasticity_solver.getReadPositions( readPositions );
 
+    MPI_Comm mpi_communicator( MPI_COMM_WORLD );
+    const unsigned int n_mpi_processes = Utilities::MPI::n_mpi_processes( mpi_communicator );
+
     BOOST_CHECK_EQUAL( readPositions.cols(), 2 );
     BOOST_CHECK_GE( readPositions.rows(), 0 );
-    BOOST_CHECK_CLOSE( readPositions( 0, 0 ), 0.251109, 0.1 );
-    BOOST_CHECK_CLOSE( readPositions( 0, 1 ), 0.19, 0.1 );
-    BOOST_CHECK_CLOSE( readPositions( 1, 0 ), 0.2569, 0.1 );
-    BOOST_CHECK_CLOSE( readPositions( 1, 1 ), 0.19, 0.1 );
+
+    if ( n_mpi_processes == 1 )
+    {
+        BOOST_CHECK_CLOSE( readPositions( 0, 0 ), 0.251109, 0.1 );
+        BOOST_CHECK_CLOSE( readPositions( 0, 1 ), 0.19, 0.1 );
+        BOOST_CHECK_CLOSE( readPositions( 1, 0 ), 0.2569, 0.1 );
+        BOOST_CHECK_CLOSE( readPositions( 1, 1 ), 0.19, 0.1 );
+    }
 }
 
 BOOST_AUTO_TEST_CASE( displacement )
@@ -556,16 +545,25 @@ BOOST_AUTO_TEST_CASE( displacement_end )
     linear_elasticity_solver.run();
     linear_elasticity_solver.getDisplacement( displacement );
 
+    MPI_Comm mpi_communicator( MPI_COMM_WORLD );
+    const unsigned int n_mpi_processes = Utilities::MPI::n_mpi_processes( mpi_communicator );
+
     BOOST_CHECK_EQUAL( readPositions.cols(), displacement.cols() );
     BOOST_CHECK_EQUAL( readPositions.rows(), displacement.rows() );
     BOOST_CHECK_EQUAL( readPositions.cols(), 2 );
     BOOST_CHECK_GE( readPositions.rows(), 0 );
-    BOOST_CHECK_CLOSE( displacement( 0, 0 ), 0, 0.001 );
-    BOOST_CHECK_CLOSE( displacement( 0, 1 ), 0, 0.001 );
-    BOOST_CHECK_CLOSE( displacement( 1, 0 ), -2.08901000e-05, 0.1 );
-    BOOST_CHECK_CLOSE( displacement( 1, 1 ), -2.08471000e-05, 0.1 );
-    BOOST_CHECK_CLOSE( displacement( 2, 0 ), -4.18553000e-05, 0.1 );
-    BOOST_CHECK_CLOSE( displacement( 2, 1 ), -5.65638000e-05, 0.1 );
+    BOOST_CHECK_EQUAL( std::isnan( displacement.norm() ), false );
+    BOOST_CHECK_EQUAL( std::isnan( readPositions.norm() ), false );
+
+    if ( n_mpi_processes == 1 )
+    {
+        BOOST_CHECK_CLOSE( displacement( 0, 0 ), 0, 0.001 );
+        BOOST_CHECK_CLOSE( displacement( 0, 1 ), 0, 0.001 );
+        BOOST_CHECK_CLOSE( displacement( 1, 0 ), -2.08901000e-05, 0.1 );
+        BOOST_CHECK_CLOSE( displacement( 1, 1 ), -2.08471000e-05, 0.1 );
+        BOOST_CHECK_CLOSE( displacement( 2, 0 ), -4.18553000e-05, 0.1 );
+        BOOST_CHECK_CLOSE( displacement( 2, 1 ), -5.65638000e-05, 0.1 );
+    }
 }
 
 BOOST_AUTO_TEST_CASE( iterations )
@@ -587,6 +585,9 @@ BOOST_AUTO_TEST_CASE( iterations )
     LinearElasticity<2> linear_elasticity_solver( time_step, final_time, theta, degree, gravity, distributed_load, rho, E, nu, n_global_refines );
     linear_elasticity_solver.run();
 
+    EigenMatrix readPositions;
+    linear_elasticity_solver.getReadPositions( readPositions );
+
     EigenMatrix displacement, displacement_2;
     linear_elasticity_solver.getDisplacement( displacement );
 
@@ -605,6 +606,7 @@ BOOST_AUTO_TEST_CASE( iterations )
         linear_elasticity_solver_2.finalizeTimeStep();
     }
 
+    linear_elasticity_solver_2.getReadPositions( readPositions );
     linear_elasticity_solver_2.getDisplacement( displacement_2 );
 
     BOOST_CHECK_EQUAL( displacement.cols(), displacement_2.cols() );

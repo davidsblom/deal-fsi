@@ -13,7 +13,6 @@ LinearElasticity<dim>::LinearElasticity ( DataStorage & data )
     fe( FE_Q<dim>( data.degree ), dim ),
     dof_handler( triangulation ),
     constraints(),
-    sparsity_pattern(),
     mass_matrix(),
     laplace_matrix(),
     matrix_u(),
@@ -72,7 +71,6 @@ LinearElasticity<dim>::LinearElasticity (
     fe( FE_Q<dim>( degree ), dim ),
     dof_handler( triangulation ),
     constraints(),
-    sparsity_pattern(),
     mass_matrix(),
     laplace_matrix(),
     matrix_u(),
@@ -133,24 +131,54 @@ void LinearElasticity<dim>::setup_system()
 
     triangulation.refine_global( n_global_refines );
 
-    pcout << "Number of active cells: "
-          << triangulation.n_active_cells()
-          << std::endl;
+    GridTools::partition_triangulation( n_mpi_processes, triangulation );
 
     dof_handler.distribute_dofs( fe );
 
-    pcout << "Number of degrees of freedom: "
-          << dof_handler.n_dofs()
-          << std::endl
-          << std::endl;
+    DoFRenumbering::subdomain_wise( dof_handler );
 
-    DynamicSparsityPattern dsp( dof_handler.n_dofs(), dof_handler.n_dofs() );
-    DoFTools::make_sparsity_pattern( dof_handler, dsp );
-    sparsity_pattern.copy_from( dsp );
+    const types::global_dof_index n_local_dofs
+        = DoFTools::count_dofs_with_subdomain_association( dof_handler,
+            this_mpi_process );
 
-    mass_matrix.reinit( sparsity_pattern );
-    laplace_matrix.reinit( sparsity_pattern );
-    matrix_u.reinit( sparsity_pattern );
+    mass_matrix.reinit( mpi_communicator,
+        dof_handler.n_dofs(),
+        dof_handler.n_dofs(),
+        n_local_dofs,
+        n_local_dofs,
+        dof_handler.max_couplings_between_dofs() );
+
+    laplace_matrix.reinit( mpi_communicator,
+        dof_handler.n_dofs(),
+        dof_handler.n_dofs(),
+        n_local_dofs,
+        n_local_dofs,
+        dof_handler.max_couplings_between_dofs() );
+
+    matrix_u.reinit( mpi_communicator,
+        dof_handler.n_dofs(),
+        dof_handler.n_dofs(),
+        n_local_dofs,
+        n_local_dofs,
+        dof_handler.max_couplings_between_dofs() );
+
+    solution_u.reinit( mpi_communicator, dof_handler.n_dofs(), n_local_dofs );
+    solution_v.reinit( mpi_communicator, dof_handler.n_dofs(), n_local_dofs );
+    old_solution_u.reinit( mpi_communicator, dof_handler.n_dofs(), n_local_dofs );
+    old_solution_v.reinit( mpi_communicator, dof_handler.n_dofs(), n_local_dofs );
+    system_rhs.reinit( mpi_communicator, dof_handler.n_dofs(), n_local_dofs );
+    body_force.reinit( mpi_communicator, dof_handler.n_dofs(), n_local_dofs );
+    old_body_force.reinit( mpi_communicator, dof_handler.n_dofs(), n_local_dofs );
+
+    // SDC time integration variables
+    u_f.reinit( mpi_communicator, dof_handler.n_dofs(), n_local_dofs );
+    v_f.reinit( mpi_communicator, dof_handler.n_dofs(), n_local_dofs );
+    u_rhs.reinit( mpi_communicator, dof_handler.n_dofs(), n_local_dofs );
+    v_rhs.reinit( mpi_communicator, dof_handler.n_dofs(), n_local_dofs );
+
+    constraints.clear();
+    DoFTools::make_hanging_node_constraints( dof_handler, constraints );
+    constraints.close();
 
     QGauss<dim>  quadrature_formula( deg + 1 );
 
@@ -174,55 +202,54 @@ void LinearElasticity<dim>::setup_system()
     endc = dof_handler.end();
 
     for (; cell != endc; ++cell )
-    {
-        cell_matrix = 0;
-        cell_rhs = 0;
-
-        fe_values.reinit( cell );
-
-        for ( unsigned int i = 0; i < dofs_per_cell; ++i )
+        if ( cell->subdomain_id() == this_mpi_process )
         {
-            const unsigned int component_i = fe.system_to_component_index( i ).first;
-            const double * phi_i = &fe_values.shape_value( i, 0 );
+            cell_matrix = 0;
+            cell_rhs = 0;
 
-            for ( unsigned int j = 0; j < dofs_per_cell; ++j )
+            fe_values.reinit( cell );
+
+            for ( unsigned int i = 0; i < dofs_per_cell; ++i )
             {
-                if ( (fe.system_to_component_index( j ).first == component_i) )
-                {
-                    const double * phi_j = &fe_values.shape_value( j, 0 );
+                const unsigned int component_i = fe.system_to_component_index( i ).first;
+                const double * phi_i = &fe_values.shape_value( i, 0 );
 
-                    for ( unsigned int q_point = 0; q_point < n_q_points; ++q_point )
+                for ( unsigned int j = 0; j < dofs_per_cell; ++j )
+                {
+                    if ( (fe.system_to_component_index( j ).first == component_i) )
                     {
-                        cell_matrix( i, j ) += phi_i[q_point] * phi_j[q_point] * fe_values.JxW( q_point );
+                        const double * phi_j = &fe_values.shape_value( j, 0 );
+
+                        for ( unsigned int q_point = 0; q_point < n_q_points; ++q_point )
+                        {
+                            cell_matrix( i, j ) += phi_i[q_point] * phi_j[q_point] * fe_values.JxW( q_point );
+                        }
                     }
                 }
             }
+
+            cell->get_dof_indices( local_dof_indices );
+
+            for ( unsigned int i = 0; i < dofs_per_cell; ++i )
+            {
+                for ( unsigned int j = 0; j < dofs_per_cell; ++j )
+                    mass_matrix.add( local_dof_indices[i], local_dof_indices[j], cell_matrix( i, j ) );
+            }
         }
 
-        cell->get_dof_indices( local_dof_indices );
+    mass_matrix.compress( VectorOperation::add );
 
-        for ( unsigned int i = 0; i < dofs_per_cell; ++i )
-        {
-            for ( unsigned int j = 0; j < dofs_per_cell; ++j )
-                mass_matrix.add( local_dof_indices[i], local_dof_indices[j], cell_matrix( i, j ) );
-        }
-    }
+    pcout << "   Number of active cells:       "
+          << triangulation.n_active_cells()
+          << std::endl;
+    pcout << "   Number of degrees of freedom: "
+          << dof_handler.n_dofs()
+          << " (by partition:";
 
-    solution_u.reinit( dof_handler.n_dofs() );
-    solution_v.reinit( dof_handler.n_dofs() );
-    old_solution_u.reinit( dof_handler.n_dofs() );
-    old_solution_v.reinit( dof_handler.n_dofs() );
-    system_rhs.reinit( dof_handler.n_dofs() );
-    body_force.reinit( dof_handler.n_dofs() );
-    old_body_force.reinit( dof_handler.n_dofs() );
+    for ( unsigned int p = 0; p < n_mpi_processes; ++p )
+        pcout << (p == 0 ? ' ' : '+') << ( DoFTools::count_dofs_with_subdomain_association( dof_handler, p ) );
 
-    // SDC time integration variables
-    u_f.reinit( dof_handler.n_dofs() );
-    v_f.reinit( dof_handler.n_dofs() );
-    u_rhs.reinit( dof_handler.n_dofs() );
-    v_rhs.reinit( dof_handler.n_dofs() );
-
-    constraints.close();
+    pcout << ")" << std::endl;
 
     assemble_system();
 }
@@ -230,9 +257,25 @@ void LinearElasticity<dim>::setup_system()
 template <int dim>
 void LinearElasticity<dim>::assemble_system()
 {
-    body_force.reinit( dof_handler.n_dofs() );
-    laplace_matrix.reinit( sparsity_pattern );
-    matrix_u.reinit( sparsity_pattern );
+    const types::global_dof_index n_local_dofs
+        = DoFTools::count_dofs_with_subdomain_association( dof_handler,
+            this_mpi_process );
+
+    laplace_matrix.reinit( mpi_communicator,
+        dof_handler.n_dofs(),
+        dof_handler.n_dofs(),
+        n_local_dofs,
+        n_local_dofs,
+        dof_handler.max_couplings_between_dofs() );
+
+    matrix_u.reinit( mpi_communicator,
+        dof_handler.n_dofs(),
+        dof_handler.n_dofs(),
+        n_local_dofs,
+        n_local_dofs,
+        dof_handler.max_couplings_between_dofs() );
+
+    body_force.reinit( mpi_communicator, dof_handler.n_dofs(), n_local_dofs );
 
     QGauss<dim>  quadrature_formula( deg + 1 );
 
@@ -270,167 +313,153 @@ void LinearElasticity<dim>::assemble_system()
     endc = dof_handler.end();
 
     for (; cell != endc; ++cell )
-    {
-        cell_matrix = 0;
-        cell_rhs = 0;
-
-        fe_values.reinit( cell );
-
-        lambda.value_list( fe_values.get_quadrature_points(), lambda_values );
-        mu.value_list( fe_values.get_quadrature_points(), mu_values );
-
-        for ( unsigned int i = 0; i < dofs_per_cell; ++i )
+        if ( cell->subdomain_id() == this_mpi_process )
         {
-            const unsigned int
-                component_i = fe.system_to_component_index( i ).first;
+            cell_matrix = 0;
+            cell_rhs = 0;
 
-            for ( unsigned int j = 0; j < dofs_per_cell; ++j )
+            fe_values.reinit( cell );
+
+            lambda.value_list( fe_values.get_quadrature_points(), lambda_values );
+            mu.value_list( fe_values.get_quadrature_points(), mu_values );
+
+            for ( unsigned int i = 0; i < dofs_per_cell; ++i )
             {
                 const unsigned int
-                    component_j = fe.system_to_component_index( j ).first;
+                    component_i = fe.system_to_component_index( i ).first;
 
-                for ( unsigned int q_point = 0; q_point < n_q_points;
-                    ++q_point )
+                for ( unsigned int j = 0; j < dofs_per_cell; ++j )
                 {
-                    cell_matrix( i, j )
-                        +=
+                    const unsigned int
+                        component_j = fe.system_to_component_index( j ).first;
 
-                        (
-                        (fe_values.shape_grad( i, q_point )[component_i] *
-                        fe_values.shape_grad( j, q_point )[component_j] *
-                        lambda_values[q_point])
-                        +
-                        (fe_values.shape_grad( i, q_point )[component_j] *
-                        fe_values.shape_grad( j, q_point )[component_i] *
-                        mu_values[q_point])
-                        +
-
-                        ( (component_i == component_j) ?
-                        (fe_values.shape_grad( i, q_point ) *
-                        fe_values.shape_grad( j, q_point ) *
-                        mu_values[q_point])  :
-                        0 )
-                        )
-                        *
-                        fe_values.JxW( q_point );
-                }
-            }
-        }
-
-        for ( unsigned int i = 0; i < dofs_per_cell; ++i )
-        {
-            const unsigned int component_i = fe.system_to_component_index( i ).first;
-
-            for ( unsigned int face = 0; face < GeometryInfo<dim>::faces_per_cell; ++face )
-            {
-                if ( cell->face( face )->at_boundary() == true
-                    && cell->face( face )->boundary_id() != 0 )
-                {
-                    fe_face_values.reinit( cell, face );
-
-                    std::vector<unsigned int> local_face_dof_indices( dofs_per_face );
-                    cell->face( face )->get_dof_indices( local_face_dof_indices );
-
-                    assert( dofs_per_face == fe_face_values.n_quadrature_points * dim );
-
-                    for ( unsigned int q = 0; q < fe_face_values.n_quadrature_points; ++q )
+                    for ( unsigned int q_point = 0; q_point < n_q_points;
+                        ++q_point )
                     {
-                        cell_rhs( i ) += get_traction( component_i, local_face_dof_indices[q * dim + component_i] ) * fe_face_values.shape_value( i, q ) * fe_face_values.JxW( q );
+                        cell_matrix( i, j )
+                            +=
+
+                            (
+                            (fe_values.shape_grad( i, q_point )[component_i] *
+                            fe_values.shape_grad( j, q_point )[component_j] *
+                            lambda_values[q_point])
+                            +
+                            (fe_values.shape_grad( i, q_point )[component_j] *
+                            fe_values.shape_grad( j, q_point )[component_i] *
+                            mu_values[q_point])
+                            +
+
+                            ( (component_i == component_j) ?
+                            (fe_values.shape_grad( i, q_point ) *
+                            fe_values.shape_grad( j, q_point ) *
+                            mu_values[q_point])  :
+                            0 )
+                            )
+                            *
+                            fe_values.JxW( q_point );
                     }
                 }
             }
+
+            for ( unsigned int i = 0; i < dofs_per_cell; ++i )
+            {
+                const unsigned int component_i = fe.system_to_component_index( i ).first;
+
+                for ( unsigned int face = 0; face < GeometryInfo<dim>::faces_per_cell; ++face )
+                {
+                    if ( cell->face( face )->at_boundary() == true
+                        && cell->face( face )->boundary_id() != 0 )
+                    {
+                        fe_face_values.reinit( cell, face );
+
+                        std::vector<unsigned int> local_face_dof_indices( dofs_per_face );
+                        cell->face( face )->get_dof_indices( local_face_dof_indices );
+
+                        assert( dofs_per_face == fe_face_values.n_quadrature_points * dim );
+
+                        for ( unsigned int q = 0; q < fe_face_values.n_quadrature_points; ++q )
+                        {
+                            cell_rhs( i ) += get_traction( component_i, local_face_dof_indices[q * dim + component_i] ) * fe_face_values.shape_value( i, q ) * fe_face_values.JxW( q );
+                        }
+                    }
+                }
+            }
+
+            right_hand_side.vector_value_list( fe_values.get_quadrature_points(), rhs_values );
+
+            for ( unsigned int i = 0; i < dofs_per_cell; ++i )
+            {
+                const unsigned int component_i = fe.system_to_component_index( i ).first;
+
+                for ( unsigned int q_point = 0; q_point < n_q_points; ++q_point )
+                    cell_rhs( i ) += fe_values.shape_value( i, q_point ) * rhs_values[q_point]( component_i ) * fe_values.JxW( q_point );
+            }
+
+            cell->get_dof_indices( local_dof_indices );
+            constraints.distribute_local_to_global( cell_matrix, cell_rhs, local_dof_indices, laplace_matrix, body_force );
         }
-
-        right_hand_side.vector_value_list( fe_values.get_quadrature_points(), rhs_values );
-
-        for ( unsigned int i = 0; i < dofs_per_cell; ++i )
-        {
-            const unsigned int component_i = fe.system_to_component_index( i ).first;
-
-            for ( unsigned int q_point = 0; q_point < n_q_points; ++q_point )
-                cell_rhs( i ) += fe_values.shape_value( i, q_point ) * rhs_values[q_point]( component_i ) * fe_values.JxW( q_point );
-        }
-
-        cell->get_dof_indices( local_dof_indices );
-
-        for ( unsigned int i = 0; i < dofs_per_cell; ++i )
-        {
-            for ( unsigned int j = 0; j < dofs_per_cell; ++j )
-                laplace_matrix.add( local_dof_indices[i],
-                    local_dof_indices[j],
-                    cell_matrix( i, j ) );
-
-            body_force( local_dof_indices[i] ) += cell_rhs( i );
-        }
-    }
-
-    constraints.condense( laplace_matrix );
 
     cell = dof_handler.begin_active();
 
     for (; cell != endc; ++cell )
-    {
-        cell_matrix = 0;
-        cell_rhs = 0;
-
-        fe_values.reinit( cell );
-
-        lambda.value_list( fe_values.get_quadrature_points(), lambda_values );
-        mu.value_list( fe_values.get_quadrature_points(), mu_values );
-
-        for ( unsigned int i = 0; i < dofs_per_cell; ++i )
+        if ( cell->subdomain_id() == this_mpi_process )
         {
-            const unsigned int component_i = fe.system_to_component_index( i ).first;
-            const double * phi_i = &fe_values.shape_value( i, 0 );
+            cell_matrix = 0;
+            cell_rhs = 0;
 
-            for ( unsigned int j = 0; j < dofs_per_cell; ++j )
+            fe_values.reinit( cell );
+
+            lambda.value_list( fe_values.get_quadrature_points(), lambda_values );
+            mu.value_list( fe_values.get_quadrature_points(), mu_values );
+
+            for ( unsigned int i = 0; i < dofs_per_cell; ++i )
             {
-                const unsigned int component_j = fe.system_to_component_index( j ).first;
-                const double * phi_j = &fe_values.shape_value( j, 0 );
+                const unsigned int component_i = fe.system_to_component_index( i ).first;
+                const double * phi_i = &fe_values.shape_value( i, 0 );
 
-                for ( unsigned int q_point = 0; q_point < n_q_points;
-                    ++q_point )
+                for ( unsigned int j = 0; j < dofs_per_cell; ++j )
                 {
-                    if ( (fe.system_to_component_index( j ).first == component_i) )
-                        cell_matrix( i, j ) += phi_i[q_point] * phi_j[q_point] * fe_values.JxW( q_point );
+                    const unsigned int component_j = fe.system_to_component_index( j ).first;
+                    const double * phi_j = &fe_values.shape_value( j, 0 );
 
-                    cell_matrix( i, j )
-                        +=
-                        theta * theta * time_step * time_step / rho *
-                        (
-                        (fe_values.shape_grad( i, q_point )[component_i] *
-                        fe_values.shape_grad( j, q_point )[component_j] *
-                        lambda_values[q_point])
-                        +
-                        (fe_values.shape_grad( i, q_point )[component_j] *
-                        fe_values.shape_grad( j, q_point )[component_i] *
-                        mu_values[q_point])
-                        +
+                    for ( unsigned int q_point = 0; q_point < n_q_points;
+                        ++q_point )
+                    {
+                        if ( (fe.system_to_component_index( j ).first == component_i) )
+                            cell_matrix( i, j ) += phi_i[q_point] * phi_j[q_point] * fe_values.JxW( q_point );
 
-                        ( (component_i == component_j) ?
-                        (fe_values.shape_grad( i, q_point ) *
-                        fe_values.shape_grad( j, q_point ) *
-                        mu_values[q_point])  :
-                        0 )
-                        )
-                        *
-                        fe_values.JxW( q_point );
+                        cell_matrix( i, j )
+                            +=
+                            theta * theta * time_step * time_step / rho *
+                            (
+                            (fe_values.shape_grad( i, q_point )[component_i] *
+                            fe_values.shape_grad( j, q_point )[component_j] *
+                            lambda_values[q_point])
+                            +
+                            (fe_values.shape_grad( i, q_point )[component_j] *
+                            fe_values.shape_grad( j, q_point )[component_i] *
+                            mu_values[q_point])
+                            +
+
+                            ( (component_i == component_j) ?
+                            (fe_values.shape_grad( i, q_point ) *
+                            fe_values.shape_grad( j, q_point ) *
+                            mu_values[q_point])  :
+                            0 )
+                            )
+                            *
+                            fe_values.JxW( q_point );
+                    }
                 }
             }
+
+            cell->get_dof_indices( local_dof_indices );
+            constraints.distribute_local_to_global( cell_matrix, local_dof_indices, matrix_u );
         }
 
-        cell->get_dof_indices( local_dof_indices );
-
-        for ( unsigned int i = 0; i < dofs_per_cell; ++i )
-        {
-            for ( unsigned int j = 0; j < dofs_per_cell; ++j )
-                matrix_u.add( local_dof_indices[i],
-                    local_dof_indices[j],
-                    cell_matrix( i, j ) );
-        }
-    }
-
-    constraints.condense( matrix_u );
+    laplace_matrix.compress( VectorOperation::add );
+    matrix_u.compress( VectorOperation::add );
+    body_force.compress( VectorOperation::add );
 }
 
 template <int dim>
@@ -486,45 +515,43 @@ void LinearElasticity<dim>::finalizeTimeStep()
 template <int dim>
 void LinearElasticity<dim>::getDisplacement( EigenMatrix & displacement )
 {
+    displacement.conservativeResize( dof_index_to_boundary_index.size() / dim, dim );
+
     Vector<double> localized_solution( solution_u );
 
     typename DoFHandler<dim>::active_cell_iterator cell =
         dof_handler.begin_active(), endc = dof_handler.end();
 
-    std::map<unsigned int, double> disp;
+    QGauss<dim - 1>  quadrature_formula( deg + 1 );
+    FEFaceValues<dim> fe_face_values( fe, quadrature_formula, update_quadrature_points );
 
     unsigned int dofs_per_face = fe.n_dofs_per_face();
 
     for (; cell != endc; ++cell )
-    {
-        for ( unsigned int face = 0; face < GeometryInfo<dim>::faces_per_cell; ++face )
+        if ( cell->subdomain_id() == this_mpi_process )
         {
-            if ( cell->face( face )->at_boundary()
-                && cell->face( face )->boundary_id() != 0 )
+            for ( unsigned int face = 0; face < GeometryInfo<dim>::faces_per_cell; ++face )
             {
-                std::vector<unsigned int> local_face_dof_indices( dofs_per_face );
-                cell->face( face )->get_dof_indices( local_face_dof_indices );
+                if ( cell->face( face )->at_boundary()
+                    && cell->face( face )->boundary_id() != 0 )
+                {
+                    fe_face_values.reinit( cell, face );
 
-                for ( unsigned int i = 0; i < dofs_per_face; ++i )
-                    disp.insert( std::pair<unsigned int, double>( local_face_dof_indices[i], localized_solution[local_face_dof_indices[i]] ) );
+                    std::vector<unsigned int> local_face_dof_indices( dofs_per_face );
+                    cell->face( face )->get_dof_indices( local_face_dof_indices );
+
+                    assert( dofs_per_face == fe_face_values.n_quadrature_points * dim );
+
+                    for ( unsigned int q = 0; q < fe_face_values.n_quadrature_points; ++q )
+                    {
+                        for ( int j = 0; j < dim; ++j )
+                        {
+                            displacement( dof_index_to_boundary_index.at( local_face_dof_indices[q * dim] ), j ) = localized_solution[local_face_dof_indices[q * dim + j]];
+                        }
+                    }
+                }
             }
         }
-    }
-
-    typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> matrixRowMajor;
-    matrixRowMajor displacementRowMajor( disp.size() / dim, dim );
-
-    double * data = displacementRowMajor.data();
-
-    unsigned int i = 0;
-
-    for ( auto it : disp )
-    {
-        data[i] = it.second;
-        i++;
-    }
-
-    displacement = displacementRowMajor;
 }
 
 template <int dim>
@@ -536,27 +563,37 @@ void LinearElasticity<dim>::getWritePositions( EigenMatrix & writePositions )
     QGauss<dim - 1>  quadrature_formula( deg + 1 );
     FEFaceValues<dim> fe_face_values( fe, quadrature_formula, update_quadrature_points );
 
-    std::map<unsigned int, Point<dim> > positions;
+    std::map<std::vector<unsigned int>, Point<dim> > positions;
 
     unsigned int dofs_per_face = fe.n_dofs_per_face();
 
     for (; cell != endc; ++cell )
-    {
-        for ( unsigned int face = 0; face < GeometryInfo<dim>::faces_per_cell; ++face )
+        if ( cell->subdomain_id() == this_mpi_process )
         {
-            if ( cell->face( face )->at_boundary()
-                && cell->face( face )->boundary_id() != 0 )
+            for ( unsigned int face = 0; face < GeometryInfo<dim>::faces_per_cell; ++face )
             {
-                fe_face_values.reinit( cell, face );
+                if ( cell->face( face )->at_boundary()
+                    && cell->face( face )->boundary_id() != 0 )
+                {
+                    fe_face_values.reinit( cell, face );
 
-                std::vector<unsigned int> local_face_dof_indices( dofs_per_face );
-                cell->face( face )->get_dof_indices( local_face_dof_indices );
+                    std::vector<unsigned int> local_face_dof_indices( dofs_per_face );
+                    cell->face( face )->get_dof_indices( local_face_dof_indices );
 
-                for ( unsigned int q = 0; q < fe_face_values.n_quadrature_points; ++q )
-                    positions.insert( std::pair<unsigned int, Point<dim> >( local_face_dof_indices[q * dim], fe_face_values.quadrature_point( q ) ) );
+                    assert( dofs_per_face == fe_face_values.n_quadrature_points * dim );
+
+                    for ( unsigned int q = 0; q < fe_face_values.n_quadrature_points; ++q )
+                    {
+                        std::vector<unsigned int> indices;
+
+                        for ( int j = 0; j < dim; ++j )
+                            indices.push_back( local_face_dof_indices[q * dim + j] );
+
+                        positions.insert( std::pair<std::vector<unsigned int>, Point<dim> >( indices, fe_face_values.quadrature_point( q ) ) );
+                    }
+                }
             }
         }
-    }
 
     dof_index_to_boundary_index.clear();
     {
@@ -564,12 +601,14 @@ void LinearElasticity<dim>::getWritePositions( EigenMatrix & writePositions )
 
         for ( auto it : positions )
         {
-            for ( int j = 0; j < dim; ++j )
-                dof_index_to_boundary_index.insert( std::pair<unsigned int, unsigned int>( it.first + j, i ) );
+            for ( auto index : it.first )
+                dof_index_to_boundary_index.insert( std::pair<unsigned int, unsigned int>( index, i ) );
 
             i++;
         }
     }
+
+    assert( dof_index_to_boundary_index.size() == positions.size() * dim );
 
     writePositions.resize( positions.size(), dim );
 
@@ -607,31 +646,31 @@ bool LinearElasticity<dim>::isRunning()
 template <int dim>
 void LinearElasticity<dim>::solve_u()
 {
-    SolverControl solver_control( 1000, 1e-12 * system_rhs.l2_norm() );
-    SolverCG<>              cg( solver_control );
+    SolverControl solver_control;
+    solver_control.log_result( false );
+    PETScWrappers::SparseDirectMUMPS solver( solver_control, mpi_communicator );
+    solver.solve( matrix_u, solution_u, system_rhs );
 
-    SparseDirectUMFPACK A_direct;
-    A_direct.initialize( matrix_u );
+    Vector<double> localized_solution( solution_u );
 
-    // cg.solve (matrix_u, solution_u, system_rhs,
-    // preconditioner);
+    constraints.distribute( localized_solution );
 
-    A_direct.vmult( solution_u, system_rhs );
+    solution_u = localized_solution;
 }
 
 template <int dim>
 void LinearElasticity<dim>::solve_v()
 {
-    SolverControl solver_control( 1000, 1e-12 * system_rhs.l2_norm() );
-    SolverCG<>              cg( solver_control );
+    SolverControl solver_control;
+    solver_control.log_result( false );
+    PETScWrappers::SparseDirectMUMPS solver( solver_control, mpi_communicator );
+    solver.solve( mass_matrix, solution_v, system_rhs );
 
-    SparseDirectUMFPACK A_direct;
-    A_direct.initialize( mass_matrix );
+    Vector<double> localized_solution( solution_v );
 
-    // cg.solve (mass_matrix, solution_v, system_rhs,
-    // preconditioner);
+    constraints.distribute( localized_solution );
 
-    A_direct.vmult( solution_v, system_rhs );
+    solution_v = localized_solution;
 }
 
 template <int dim>
@@ -641,6 +680,12 @@ void LinearElasticity<dim>::output_results() const
         return;
 
     if ( timestep_number % output_interval != 0 )
+        return;
+
+    Vector<double> solution_u( this->solution_u );
+    Vector<double> solution_v( this->solution_v );
+
+    if ( this_mpi_process != 0 )
         return;
 
     DataOut<dim> data_out;
@@ -704,8 +749,13 @@ void LinearElasticity<dim>::run()
 template <int dim>
 void LinearElasticity<dim>::solve()
 {
-    Vector<double> tmp( solution_u.size() );
-    Vector<double> forcing_terms( solution_u.size() );
+    const types::global_dof_index n_local_dofs
+        = DoFTools::count_dofs_with_subdomain_association( dof_handler,
+            this_mpi_process );
+
+    PETScWrappers::MPI::Vector tmp, forcing_terms;
+    tmp.reinit( mpi_communicator, dof_handler.n_dofs(), n_local_dofs );
+    forcing_terms.reinit( mpi_communicator, dof_handler.n_dofs(), n_local_dofs );
 
     assemble_system();
 
@@ -726,9 +776,9 @@ void LinearElasticity<dim>::solve()
     system_rhs.add( theta * time_step, forcing_terms );
 
     // SDC time integration
-    tmp = mass_matrix * v_rhs;
+    mass_matrix.vmult( tmp, v_rhs );
     system_rhs.add( time_step, tmp );
-    tmp = mass_matrix * u_rhs;
+    mass_matrix.vmult( tmp, u_rhs );
     system_rhs += tmp;
 
     {
@@ -741,7 +791,7 @@ void LinearElasticity<dim>::solve()
         MatrixTools::apply_boundary_values( boundary_values,
             matrix_u,
             solution_u,
-            system_rhs );
+            system_rhs, false );
     }
     solve_u();
 
@@ -757,7 +807,7 @@ void LinearElasticity<dim>::solve()
     system_rhs += forcing_terms;
 
     // SDC time integration
-    tmp = mass_matrix * v_rhs;
+    mass_matrix.vmult( tmp, v_rhs );
     system_rhs += tmp;
 
     {
@@ -769,7 +819,7 @@ void LinearElasticity<dim>::solve()
         MatrixTools::apply_boundary_values( boundary_values,
             mass_matrix,
             solution_v,
-            system_rhs );
+            system_rhs, false );
     }
     solve_v();
 
@@ -800,8 +850,10 @@ double LinearElasticity<dim>::point_value() const
 
     Vector<double> vector_value( dim );
 
+    Vector<double> localized_solution( solution_u );
+
     VectorTools::point_value( dof_handler,
-        solution_u,
+        localized_solution,
         point,
         vector_value
         );

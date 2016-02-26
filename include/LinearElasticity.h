@@ -139,16 +139,9 @@ public:
 
         ConstraintMatrix constraints;
 
-        SparsityPattern sparsity_pattern;
-        SparseMatrix<double> mass_matrix;
-        SparseMatrix<double> laplace_matrix;
-        SparseMatrix<double> matrix_u;
-
-        Vector<double>       solution_u, solution_v;
-        Vector<double>       old_solution_u, old_solution_v;
-        Vector<double>       system_rhs;
-        Vector<double>       body_force;
-        Vector<double>       old_body_force;
+        PETScWrappers::MPI::SparseMatrix mass_matrix, laplace_matrix, matrix_u;
+        PETScWrappers::MPI::Vector solution_u, solution_v, old_solution_u, old_solution_v;
+        PETScWrappers::MPI::Vector system_rhs, body_force, old_body_force;
 
         double initial_time, final_time, time, time_step;
         unsigned int timestep_number;
@@ -168,7 +161,7 @@ protected:
         EigenMatrix traction;
 
         // SDC time integration variables
-        Vector<double> u_f, v_f, u_rhs, v_rhs;
+        PETScWrappers::MPI::Vector u_f, v_f, u_rhs, v_rhs;
 
         MPI_Comm mpi_communicator;
         const unsigned int n_mpi_processes, this_mpi_process;

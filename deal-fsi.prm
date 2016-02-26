@@ -14,7 +14,7 @@ subsection Output
   set output_interval = 1
 
   # This indicates whether the solution is saved in paraview format.
-  set output_paraview = false
+  set output_paraview = true
 end
 
 
