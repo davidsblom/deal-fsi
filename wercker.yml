@@ -94,7 +94,7 @@ build:
                 mkdir bin
                 cd build
 
-                cmake -DCMAKE_INSTALL_PREFIX=`pwd`/../bin -DCMAKE_BUILD_TYPE="Debug" ..
+                cmake -DCMAKE_INSTALL_PREFIX=`pwd`/../bin ..
 
                 make -j 4 install
 
@@ -103,6 +103,7 @@ build:
             name: compile deal-fsi
             code: |
                 cmake -DDEAL_II_DIR=dealii/bin/ .
+                make release
                 make debug
         - script:
             name: run test suite with MPI
