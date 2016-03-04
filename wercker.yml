@@ -74,31 +74,45 @@ build:
             code: |
                 export DEALII_VERSION=8.3.0
 
-                wget https://github.com/dealii/dealii/releases/download/v${DEALII_VERSION}/dealii-${DEALII_VERSION}.tar.gz
+                if [ -f "$WERCKER_CACHE_DIR/dealii-${DEALII_VERSION}/bin/lib/libdeal_II.so.${DEALII_VERSION}" ]; then
+                    debug "deal.II library found in cache"
+                    ln -s $WERCKER_CACHE_DIR/dealii-${DEALII_VERSION} ./
+                    ln -s dealii-${DEALII_VERSION} dealii
+                else
+                    debug "deal.II library not found in cache, will download and compile"
 
-                tar -zxf dealii-${DEALII_VERSION}.tar.gz
+                    wget https://github.com/dealii/dealii/releases/download/v${DEALII_VERSION}/dealii-${DEALII_VERSION}.tar.gz
 
-                ln -s dealii-${DEALII_VERSION} dealii
+                    tar -zxf dealii-${DEALII_VERSION}.tar.gz
 
-                rm dealii-${DEALII_VERSION}.tar.gz
-                export CC=mpicc
-                export CXX=mpicxx
-                export F77=mpif77
-                export F90=mpif90
-                export METIS_DIR=`pwd`/metis
-                export PARMETIS_DIR=`pwd`/parmetis
+                    ln -s dealii-${DEALII_VERSION} dealii
 
-                cd dealii-${DEALII_VERSION}
+                    rm dealii-${DEALII_VERSION}.tar.gz
+                    export CC=mpicc
+                    export CXX=mpicxx
+                    export F77=mpif77
+                    export F90=mpif90
+                    export METIS_DIR=`pwd`/metis
+                    export PARMETIS_DIR=`pwd`/parmetis
 
-                mkdir build
-                mkdir bin
-                cd build
+                    cd dealii-${DEALII_VERSION}
 
-                cmake -DCMAKE_INSTALL_PREFIX=`pwd`/../bin ..
+                    mkdir build
+                    mkdir bin
+                    cd build
 
-                make -j 4 install
+                    cmake -DCMAKE_INSTALL_PREFIX=`pwd`/../bin ..
 
-                make -j 4 test
+                    make -j 4 install
+
+                    make -j 4 test
+
+                    cd ../../
+
+                    rm -rf dealii-${DEALII_VERSION}/build
+
+                    cp -r dealii-${DEALII_VERSION} $WERCKER_CACHE_DIR/
+                fi
         - script:
             name: compile deal-fsi
             code: |
@@ -110,7 +124,7 @@ build:
             code: mpirun -np 2 ./main
         - script:
             name: run test suite
-            code: | 
+            code: |
                 lcov --directory . --zerocounters # reset code coverage counters
                 ./main
         - script:
