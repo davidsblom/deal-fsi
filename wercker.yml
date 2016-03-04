@@ -109,6 +109,8 @@ build:
 
                     cd ../../
 
+                    rm -rf dealii-${DEALII_VERSION}/build
+
                     cp -r dealii-${DEALII_VERSION} $WERCKER_CACHE_DIR/
                 fi
         - script:
