@@ -81,6 +81,9 @@ build:
                 else
                     debug "deal.II library not found in cache, will download and compile"
 
+                    echo $WERCKER_CACHE_DIR
+                    ls -la $WERCKER_CACHE_DIR/
+
                     wget https://github.com/dealii/dealii/releases/download/v${DEALII_VERSION}/dealii-${DEALII_VERSION}.tar.gz
 
                     tar -zxf dealii-${DEALII_VERSION}.tar.gz
