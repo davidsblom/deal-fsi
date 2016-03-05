@@ -74,9 +74,10 @@ build:
             code: |
                 export DEALII_VERSION=8.3.0
 
-                if [ -d "$WERCKER_CACHE_DIR/dealii-${DEALII_VERSION}" ]; then
+                if [ -f "$WERCKER_CACHE_DIR/dealii-${DEALII_VERSION}.tar.gz" ]; then
                     debug "deal.II library found in cache"
-                    rsync -avzv $WERCKER_CACHE_DIR/dealii-${DEALII_VERSION} ./
+                    rsync -azvh $WERCKER_CACHE_DIR/dealii-${DEALII_VERSION}.tar.gz ./
+                    tar -zxf dealii-${DEALII_VERSION}.tar.gz
                     ln -s dealii-${DEALII_VERSION} dealii
                 else
                     debug "deal.II library not found in cache, will download and compile"
@@ -114,7 +115,8 @@ build:
 
                     rm -rf dealii-${DEALII_VERSION}/build
 
-                    rsync -avzv dealii-${DEALII_VERSION} $WERCKER_CACHE_DIR/
+                    tar -zcf dealii-${DEALII_VERSION}.tar.gz dealii-${DEALII_VERSION}
+                    rsync -azvh dealii-${DEALII_VERSION}.tar.gz $WERCKER_CACHE_DIR/
                 fi
         - script:
             name: compile deal-fsi
