@@ -35,21 +35,33 @@ build:
             code: |
                 export METIS_VERSION=5.1.0
 
-                wget http://glaros.dtc.umn.edu/gkhome/fetch/sw/metis/metis-${METIS_VERSION}.tar.gz
+                if [ -f "$WERCKER_CACHE_DIR/metis-${METIS_VERSION}.tar.gz" ]; then
+                    debug "metis library found in cache"
+                    rsync -azvh $WERCKER_CACHE_DIR/metis-${METIS_VERSION}.tar.gz ./
+                    tar -zxf metis-${METIS_VERSION}.tar.gz
+                    ln -s metis-${METIS_VERSION} metis
+                else
 
-                tar -zxf metis-${METIS_VERSION}.tar.gz
-                rm metis-${METIS_VERSION}.tar.gz
+                    wget http://glaros.dtc.umn.edu/gkhome/fetch/sw/metis/metis-${METIS_VERSION}.tar.gz
 
-                ln -s metis-${METIS_VERSION} metis
+                    tar -zxf metis-${METIS_VERSION}.tar.gz
+                    rm metis-${METIS_VERSION}.tar.gz
 
-                cd metis-${METIS_VERSION}
+                    ln -s metis-${METIS_VERSION} metis
 
-                export CC=mpicc
-                export CXX=mpicxx
+                    cd metis-${METIS_VERSION}
 
-                make config prefix=`pwd`/build
+                    export CC=mpicc
+                    export CXX=mpicxx
 
-                make install
+                    make config prefix=`pwd`/build
+
+                    make install
+
+                    cd ../
+                    tar -zcf metis-${METIS_VERSION}.tar.gz metis-${METIS_VERSION}
+                    rsync -azvh metis-${METIS_VERSION}.tar.gz $WERCKER_CACHE_DIR/
+                fi
         - script:
             name: parmetis
             code: |
