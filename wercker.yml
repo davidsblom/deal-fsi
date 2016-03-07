@@ -155,7 +155,6 @@ build:
         - script:
             name: run test suite
             code: |
-                lcov --directory . --zerocounters # reset code coverage counters
                 ./main
         - script:
             name: code coverage
