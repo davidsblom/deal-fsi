@@ -32,9 +32,17 @@ build:
         - script:
             name: eigen
             code: |
-                wget http://bitbucket.org/eigen/eigen/get/3.2.8.tar.bz2
-                tar jxf 3.2.8.tar.bz2
-                rm -f 3.2.8.tar.bz2
+                export EIGEN_VERSION=3.2.8
+
+                if [ -f "$WERCKER_CACHE_DIR/eigen-${EIGEN_VERSION}.tar.bz" ]; then
+                    debug "eigen library found in cache"
+                    rsync -azvh $WERCKER_CACHE_DIR/eigen-${EIGEN_VERSION}.tar.bz ./
+                else
+                    wget -O eigen-${EIGEN_VERSION}.tar.bz http://bitbucket.org/eigen/eigen/get/${EIGEN_VERSION}.tar.bz2
+                    rsync -azvh eigen-${EIGEN_VERSION}.tar.bz $WERCKER_CACHE_DIR/
+                fi
+
+                tar jxf eigen-${EIGEN_VERSION}.tar.bz
                 ln -s eigen-eigen-07105f7124f9 eigen
         - script:
             name: metis
