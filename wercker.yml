@@ -8,7 +8,7 @@ build:
             name: install packages
             code: |
                 apt-get -qq update
-                apt-get -y install git build-essential zlib1g-dev libreadline-dev libncurses-dev libxt-dev libopenmpi-dev openmpi-bin wget cmake petsc-dev gfortran python bison flex python-pip lcov
+                apt-get -y install git build-essential zlib1g-dev libreadline-dev libncurses-dev libxt-dev libopenmpi-dev openmpi-bin wget cmake petsc-dev gfortran python bison flex python-pip lcov cppcheck
                 pip install codecov
         - script:
             name: boost
@@ -174,3 +174,7 @@ build:
             name: code coverage
             code: |
                 codecov --token=${CODECOV_TOKEN}
+        - script:
+            name: cppcheck
+            code: |
+                (cd src && cppcheck --enable=all .)
