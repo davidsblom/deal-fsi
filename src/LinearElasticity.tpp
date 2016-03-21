@@ -659,21 +659,6 @@ void LinearElasticity<dim>::solve_u()
 }
 
 template <int dim>
-void LinearElasticity<dim>::solve_v()
-{
-    SolverControl solver_control;
-    solver_control.log_result( false );
-    PETScWrappers::SparseDirectMUMPS solver( solver_control, mpi_communicator );
-    solver.solve( mass_matrix, solution_v, system_rhs );
-
-    Vector<double> localized_solution( solution_v );
-
-    constraints.distribute( localized_solution );
-
-    solution_v = localized_solution;
-}
-
-template <int dim>
 void LinearElasticity<dim>::output_results() const
 {
     if ( not output_paraview )

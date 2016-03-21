@@ -128,8 +128,6 @@ public:
 
         void solve_u();
 
-        void solve_v();
-
         const unsigned int deg;
         const unsigned int n_global_refines;
 
