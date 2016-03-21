@@ -24,7 +24,7 @@ build:
                     rsync -azvh $WERCKER_CACHE_DIR/boost_${BOOST_VERSION}.tar.bz2 ./
                 else
                     wget -O boost_${BOOST_VERSION}.tar.bz2 http://downloads.sourceforge.net/project/boost/boost/${BOOST_VERSION_DOT}/boost_${BOOST_VERSION}.tar.bz2
-                    rsync -azvh boost_${BOOST_VERSION}.tar.bz2 $WERCKER_CACHE_DIR/
+                    # rsync -azvh boost_${BOOST_VERSION}.tar.bz2 $WERCKER_CACHE_DIR/
                 fi
 
                 tar jxf boost_${BOOST_VERSION}.tar.bz2
@@ -39,7 +39,7 @@ build:
                     rsync -azvh $WERCKER_CACHE_DIR/eigen-${EIGEN_VERSION}.tar.bz ./
                 else
                     wget -O eigen-${EIGEN_VERSION}.tar.bz http://bitbucket.org/eigen/eigen/get/${EIGEN_VERSION}.tar.bz2
-                    rsync -azvh eigen-${EIGEN_VERSION}.tar.bz $WERCKER_CACHE_DIR/
+                    # rsync -azvh eigen-${EIGEN_VERSION}.tar.bz $WERCKER_CACHE_DIR/
                 fi
 
                 tar jxf eigen-${EIGEN_VERSION}.tar.bz
@@ -74,7 +74,7 @@ build:
 
                     cd ../
                     tar -zcf metis-${METIS_VERSION}.tar.gz metis-${METIS_VERSION}
-                    rsync -azvh metis-${METIS_VERSION}.tar.gz $WERCKER_CACHE_DIR/
+                    # rsync -azvh metis-${METIS_VERSION}.tar.gz $WERCKER_CACHE_DIR/
                 fi
         - script:
             name: parmetis
@@ -106,7 +106,7 @@ build:
 
                     cd ../
                     tar -zcf parmetis-${PARMETIS_VERSION}.tar.gz parmetis-${PARMETIS_VERSION}
-                    rsync -azvh parmetis-${PARMETIS_VERSION}.tar.gz $WERCKER_CACHE_DIR/
+                    # rsync -azvh parmetis-${PARMETIS_VERSION}.tar.gz $WERCKER_CACHE_DIR/
                 fi
         - script:
             name: deal.II
@@ -155,7 +155,7 @@ build:
                     rm -rf dealii-${DEALII_VERSION}/build
 
                     tar -zcf dealii-${DEALII_VERSION}.tar.gz dealii-${DEALII_VERSION}
-                    rsync -azvh dealii-${DEALII_VERSION}.tar.gz $WERCKER_CACHE_DIR/
+                    # rsync -azvh dealii-${DEALII_VERSION}.tar.gz $WERCKER_CACHE_DIR/
                 fi
         - script:
             name: compile deal-fsi
