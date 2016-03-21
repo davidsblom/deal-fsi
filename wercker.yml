@@ -1,4 +1,4 @@
-box: debian
+box: davidsblom/deal-fsi
 
 command-timeout: 60
 
