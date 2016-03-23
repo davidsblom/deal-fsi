@@ -659,21 +659,6 @@ void LinearElasticity<dim>::solve_u()
 }
 
 template <int dim>
-void LinearElasticity<dim>::solve_v()
-{
-    SolverControl solver_control;
-    solver_control.log_result( false );
-    PETScWrappers::SparseDirectMUMPS solver( solver_control, mpi_communicator );
-    solver.solve( mass_matrix, solution_v, system_rhs );
-
-    Vector<double> localized_solution( solution_v );
-
-    constraints.distribute( localized_solution );
-
-    solution_v = localized_solution;
-}
-
-template <int dim>
 void LinearElasticity<dim>::output_results() const
 {
     if ( not output_paraview )
@@ -761,8 +746,7 @@ void LinearElasticity<dim>::solve()
 
     mass_matrix.vmult( system_rhs, old_solution_u );
 
-    mass_matrix.vmult( tmp, old_solution_v );
-    system_rhs.add( time_step, tmp );
+    system_rhs.add( time_step, old_solution_v );
 
     laplace_matrix.vmult( tmp, old_solution_u );
     system_rhs.add( -theta * (1 - theta) * time_step * time_step / rho, tmp );
@@ -776,8 +760,7 @@ void LinearElasticity<dim>::solve()
     system_rhs.add( theta * time_step, forcing_terms );
 
     // SDC time integration
-    mass_matrix.vmult( tmp, v_rhs );
-    system_rhs.add( time_step, tmp );
+    system_rhs.add( time_step, v_rhs );
     mass_matrix.vmult( tmp, u_rhs );
     system_rhs += tmp;
 
@@ -798,8 +781,7 @@ void LinearElasticity<dim>::solve()
     laplace_matrix.vmult( system_rhs, solution_u );
     system_rhs *= -theta * time_step / rho;
 
-    mass_matrix.vmult( tmp, old_solution_v );
-    system_rhs += tmp;
+    system_rhs += old_solution_v;
 
     laplace_matrix.vmult( tmp, old_solution_u );
     system_rhs.add( -time_step * (1 - theta) / rho, tmp );
@@ -807,21 +789,9 @@ void LinearElasticity<dim>::solve()
     system_rhs += forcing_terms;
 
     // SDC time integration
-    mass_matrix.vmult( tmp, v_rhs );
-    system_rhs += tmp;
+    system_rhs += v_rhs;
 
-    {
-        std::map<types::global_dof_index, double> boundary_values;
-        VectorTools::interpolate_boundary_values( dof_handler,
-            0,
-            ZeroFunction<dim>( dim ),
-            boundary_values );
-        MatrixTools::apply_boundary_values( boundary_values,
-            mass_matrix,
-            solution_v,
-            system_rhs, false );
-    }
-    solve_v();
+    solution_v = system_rhs;
 
     // SDC time integration variables
     // u_f = (1.0 / time_step) * (solution_u - old_solution_u - u_rhs);
@@ -830,11 +800,9 @@ void LinearElasticity<dim>::solve()
     u_f -= u_rhs;
     u_f *= 1.0 / time_step;
 
-    // v_f = (1.0 / time_step) * (solution_v - old_solution_v - v_rhs);
-    v_f = solution_v;
-    v_f -= old_solution_v;
-    v_f -= v_rhs;
-    v_f *= 1.0 / time_step;
+    laplace_matrix.vmult( v_f, solution_u );
+    v_f *= -1.0 / rho;
+    v_f.add(1.0 / rho, body_force );
 }
 
 template <int dim>

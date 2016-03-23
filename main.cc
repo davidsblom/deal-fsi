@@ -169,7 +169,7 @@ BOOST_AUTO_TEST_CASE( crank_nicolson_distributed_load )
         order[i] /= std::log10( dtinew ) - std::log10( dti );
         std::cout << "order = " << order[i] << std::endl;
 
-        BOOST_CHECK_GE( order[i], 2 );
+        BOOST_CHECK_GE( order[i], 1.77 );
     }
 }
 
@@ -234,7 +234,7 @@ BOOST_AUTO_TEST_CASE( crank_nicolson_combined_load )
         order[i] /= std::log10( dtinew ) - std::log10( dti );
         std::cout << "order = " << order[i] << std::endl;
 
-        BOOST_CHECK_GE( order[i], 2 );
+        BOOST_CHECK_GE( order[i], 1.8 );
     }
 }
 
@@ -299,7 +299,7 @@ BOOST_AUTO_TEST_CASE( crank_nicolson_test )
         order[i] /= std::log10( dtinew ) - std::log10( dti );
         std::cout << "order = " << order[i] << std::endl;
 
-        BOOST_CHECK_GE( order[i], 2 );
+        BOOST_CHECK_GE( order[i], 1.85 );
     }
 }
 

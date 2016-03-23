@@ -1,4 +1,4 @@
-box: debian
+box: davidsblom/deal-fsi
 
 command-timeout: 60
 
@@ -8,14 +8,14 @@ build:
             name: install packages
             code: |
                 apt-get -qq update
-                apt-get -y install git build-essential zlib1g-dev libreadline-dev libncurses-dev libxt-dev libopenmpi-dev openmpi-bin wget cmake petsc-dev gfortran python bison flex python-pip lcov cppcheck
+                apt-get -y install git build-essential zlib1g-dev libreadline-dev libncurses-dev libxt-dev libopenmpi-dev openmpi-bin wget cmake petsc-dev gfortran python bison flex python-pip lcov cppcheck libpython-dev python-dev
                 pip install codecov
         - script:
             name: boost
             code: |
                 export METIS_VERSION=5.1.0
                 export PARMETIS_VERSION=4.0.3
-                export DEALII_VERSION=8.3.0
+                export DEALII_VERSION=8.4.0
                 export BOOST_VERSION=1_55_0
                 export BOOST_VERSION_DOT=1.55.0
 
@@ -111,7 +111,7 @@ build:
         - script:
             name: deal.II
             code: |
-                export DEALII_VERSION=8.3.0
+                export DEALII_VERSION=8.4.0
 
                 if [ -f "$WERCKER_CACHE_DIR/dealii-${DEALII_VERSION}.tar.gz" ]; then
                     debug "deal.II library found in cache"
@@ -178,3 +178,7 @@ build:
             name: cppcheck
             code: |
                 (cd src && cppcheck --enable=all .)
+        - script:
+            name: cleanup
+            code: |
+                rm -rf *
