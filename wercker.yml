@@ -178,3 +178,7 @@ build:
             name: cppcheck
             code: |
                 (cd src && cppcheck --enable=all .)
+        - script:
+            name: cleanup
+            code: |
+                rm -rf *
