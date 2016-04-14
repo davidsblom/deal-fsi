@@ -15,7 +15,7 @@ build:
             code: |
                 export METIS_VERSION=5.1.0
                 export PARMETIS_VERSION=4.0.3
-                export DEALII_VERSION=8.4.0
+                export DEALII_VERSION=8.4.1
                 export BOOST_VERSION=1_55_0
                 export BOOST_VERSION_DOT=1.55.0
 
@@ -111,7 +111,7 @@ build:
         - script:
             name: deal.II
             code: |
-                export DEALII_VERSION=8.4.0
+                export DEALII_VERSION=8.4.1
 
                 if [ -f "$WERCKER_CACHE_DIR/dealii-${DEALII_VERSION}.tar.gz" ]; then
                     debug "deal.II library found in cache"
