@@ -177,7 +177,7 @@ build:
         - script:
             name: cppcheck
             code: |
-                (cd src && cppcheck --enable=all .)
+                (cd src && cppcheck --error-exitcode=1 --enable=all .)
         - script:
             name: cleanup
             code: |
