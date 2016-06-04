@@ -49,10 +49,10 @@ build:
             code: |
                 export METIS_VERSION=5.1.0
 
-                if [ -f "$WERCKER_CACHE_DIR/metis-${METIS_VERSION}.tar.gz" ]; then
+                if [ -f "$WERCKER_CACHE_DIR/metis-${METIS_VERSION}-${BUILD_KEY}.tar.gz" ]; then
                     debug "metis library found in cache"
-                    rsync -azvh $WERCKER_CACHE_DIR/metis-${METIS_VERSION}.tar.gz ./
-                    tar -zxf metis-${METIS_VERSION}.tar.gz
+                    rsync -azvh $WERCKER_CACHE_DIR/metis-${METIS_VERSION}-${BUILD_KEY}.tar.gz ./
+                    tar -zxf metis-${METIS_VERSION}-${BUILD_KEY}.tar.gz
                     ln -s metis-${METIS_VERSION} metis
                 else
 
@@ -73,18 +73,18 @@ build:
                     make install
 
                     cd ../
-                    tar -zcf metis-${METIS_VERSION}.tar.gz metis-${METIS_VERSION}
-                    rsync -azvh metis-${METIS_VERSION}.tar.gz $WERCKER_CACHE_DIR/
+                    tar -zcf metis-${METIS_VERSION}-${BUILD_KEY}.tar.gz metis-${METIS_VERSION}
+                    rsync -azvh metis-${METIS_VERSION}-${BUILD_KEY}.tar.gz $WERCKER_CACHE_DIR/
                 fi
         - script:
             name: parmetis
             code: |
                 export PARMETIS_VERSION=4.0.3
 
-                if [ -f "$WERCKER_CACHE_DIR/parmetis-${PARMETIS_VERSION}.tar.gz" ]; then
+                if [ -f "$WERCKER_CACHE_DIR/parmetis-${PARMETIS_VERSION}-${BUILD_KEY}.tar.gz" ]; then
                     debug "parmetis library found in cache"
-                    rsync -azvh $WERCKER_CACHE_DIR/parmetis-${PARMETIS_VERSION}.tar.gz ./
-                    tar -zxf parmetis-${PARMETIS_VERSION}.tar.gz
+                    rsync -azvh $WERCKER_CACHE_DIR/parmetis-${PARMETIS_VERSION}-${BUILD_KEY}.tar.gz ./
+                    tar -zxf parmetis-${PARMETIS_VERSION}-${BUILD_KEY}.tar.gz
                     ln -s parmetis-${PARMETIS_VERSION} parmetis
                 else
                     debug "parmetis library not found in cache, will download and compile"
@@ -105,24 +105,24 @@ build:
                     make install
 
                     cd ../
-                    tar -zcf parmetis-${PARMETIS_VERSION}.tar.gz parmetis-${PARMETIS_VERSION}
-                    rsync -azvh parmetis-${PARMETIS_VERSION}.tar.gz $WERCKER_CACHE_DIR/
+                    tar -zcf parmetis-${PARMETIS_VERSION}-${BUILD_KEY}.tar.gz parmetis-${PARMETIS_VERSION}
+                    rsync -azvh parmetis-${PARMETIS_VERSION}-${BUILD_KEY}.tar.gz $WERCKER_CACHE_DIR/
                 fi
         - script:
             name: deal.II
             code: |
                 export DEALII_VERSION=8.4.1
 
-                if [ -f "$WERCKER_CACHE_DIR/dealii-${DEALII_VERSION}.tar.gz" ]; then
+                if [ -f "$WERCKER_CACHE_DIR/dealii-${DEALII_VERSION}-${BUILD_KEY}.tar.gz" ]; then
                     debug "deal.II library found in cache"
-                    rsync -azvh $WERCKER_CACHE_DIR/dealii-${DEALII_VERSION}.tar.gz ./
-                    tar -zxf dealii-${DEALII_VERSION}.tar.gz
+                    rsync -azvh $WERCKER_CACHE_DIR/dealii-${DEALII_VERSION}-${BUILD_KEY}.tar.gz ./
+                    tar -zxf dealii-${DEALII_VERSION}-${BUILD_KEY}.tar.gz
                     ln -s dealii-${DEALII_VERSION} dealii
                 else
                     debug "deal.II library not found in cache, will download and compile"
 
                     echo $WERCKER_CACHE_DIR
-                    ls -la $WERCKER_CACHE_DIR/
+                    ls -lah $WERCKER_CACHE_DIR/
 
                     wget https://github.com/dealii/dealii/releases/download/v${DEALII_VERSION}/dealii-${DEALII_VERSION}.tar.gz
 
@@ -148,37 +148,203 @@ build:
 
                     make -j 4 install
 
-                    make -j 4 test
-
                     cd ../../
 
                     rm -rf dealii-${DEALII_VERSION}/build
 
-                    tar -zcf dealii-${DEALII_VERSION}.tar.gz dealii-${DEALII_VERSION}
-                    rsync -azvh dealii-${DEALII_VERSION}.tar.gz $WERCKER_CACHE_DIR/
+                    tar -zcf dealii-${DEALII_VERSION}-${BUILD_KEY}.tar.gz dealii-${DEALII_VERSION}
+                    rsync -azvh dealii-${DEALII_VERSION}-${BUILD_KEY}.tar.gz $WERCKER_CACHE_DIR/
                 fi
         - script:
             name: compile deal-fsi
             code: |
                 cmake -DDEAL_II_DIR=dealii/bin/ .
-                make release
                 make debug
+                make release
         - script:
             name: run test suite with MPI
             code: mpirun -np 2 ./main
         - script:
             name: run test suite
-            code: |
-                ./main
+            code: ./main
         - script:
             name: code coverage
-            code: |
-                codecov --token=${CODECOV_TOKEN}
+            code: codecov --token=${CODECOV_TOKEN}
         - script:
             name: cppcheck
-            code: |
-                (cd src && cppcheck --error-exitcode=1 --enable=all .)
+            code: (cd src && cppcheck --error-exitcode=1 --enable=all .)
         - script:
             name: cleanup
+            code: rm -rf *
+
+gcc-5:
+    box: davidsblom/deal-fsi-testing
+    steps:
+        - script:
+            name: install packages
             code: |
-                rm -rf *
+                apt-get -qq update
+                apt-get -y install git build-essential zlib1g-dev libreadline-dev libncurses-dev libxt-dev libopenmpi-dev openmpi-bin wget cmake petsc-dev gfortran python bison flex python-pip lcov cppcheck libpython-dev python-dev
+        - script:
+            name: boost
+            code: |
+                export METIS_VERSION=5.1.0
+                export PARMETIS_VERSION=4.0.3
+                export DEALII_VERSION=8.4.1
+                export BOOST_VERSION=1_55_0
+                export BOOST_VERSION_DOT=1.55.0
+
+                if [ -f "$WERCKER_CACHE_DIR/boost_${BOOST_VERSION}.tar.bz2" ]; then
+                    debug "boost library found in cache"
+                    rsync -azvh $WERCKER_CACHE_DIR/boost_${BOOST_VERSION}.tar.bz2 ./
+                else
+                    wget -O boost_${BOOST_VERSION}.tar.bz2 http://downloads.sourceforge.net/project/boost/boost/${BOOST_VERSION_DOT}/boost_${BOOST_VERSION}.tar.bz2
+                    rsync -azvh boost_${BOOST_VERSION}.tar.bz2 $WERCKER_CACHE_DIR/
+                fi
+
+                tar jxf boost_${BOOST_VERSION}.tar.bz2
+                ln -s boost_${BOOST_VERSION} boost
+        - script:
+            name: eigen
+            code: |
+                export EIGEN_VERSION=3.2.8
+
+                if [ -f "$WERCKER_CACHE_DIR/eigen-${EIGEN_VERSION}.tar.bz" ]; then
+                    debug "eigen library found in cache"
+                    rsync -azvh $WERCKER_CACHE_DIR/eigen-${EIGEN_VERSION}.tar.bz ./
+                else
+                    wget -O eigen-${EIGEN_VERSION}.tar.bz http://bitbucket.org/eigen/eigen/get/${EIGEN_VERSION}.tar.bz2
+                    rsync -azvh eigen-${EIGEN_VERSION}.tar.bz $WERCKER_CACHE_DIR/
+                fi
+
+                tar jxf eigen-${EIGEN_VERSION}.tar.bz
+                ln -s eigen-eigen-07105f7124f9 eigen
+        - script:
+            name: metis
+            code: |
+                export METIS_VERSION=5.1.0
+
+                if [ -f "$WERCKER_CACHE_DIR/metis-${METIS_VERSION}-${BUILD_KEY}.tar.gz" ]; then
+                    debug "metis library found in cache"
+                    rsync -azvh $WERCKER_CACHE_DIR/metis-${METIS_VERSION}-${BUILD_KEY}.tar.gz ./
+                    tar -zxf metis-${METIS_VERSION}-${BUILD_KEY}.tar.gz
+                    ln -s metis-${METIS_VERSION} metis
+                else
+
+                    wget http://glaros.dtc.umn.edu/gkhome/fetch/sw/metis/metis-${METIS_VERSION}.tar.gz
+
+                    tar -zxf metis-${METIS_VERSION}.tar.gz
+                    rm metis-${METIS_VERSION}.tar.gz
+
+                    ln -s metis-${METIS_VERSION} metis
+
+                    cd metis-${METIS_VERSION}
+
+                    export CC=mpicc
+                    export CXX=mpicxx
+
+                    make config prefix=`pwd`/build
+
+                    make install
+
+                    cd ../
+                    tar -zcf metis-${METIS_VERSION}-${BUILD_KEY}.tar.gz metis-${METIS_VERSION}
+                    rsync -azvh metis-${METIS_VERSION}-${BUILD_KEY}.tar.gz $WERCKER_CACHE_DIR/
+                fi
+        - script:
+            name: parmetis
+            code: |
+                export PARMETIS_VERSION=4.0.3
+
+                if [ -f "$WERCKER_CACHE_DIR/parmetis-${PARMETIS_VERSION}-${BUILD_KEY}.tar.gz" ]; then
+                    debug "parmetis library found in cache"
+                    rsync -azvh $WERCKER_CACHE_DIR/parmetis-${PARMETIS_VERSION}-${BUILD_KEY}.tar.gz ./
+                    tar -zxf parmetis-${PARMETIS_VERSION}-${BUILD_KEY}.tar.gz
+                    ln -s parmetis-${PARMETIS_VERSION} parmetis
+                else
+                    debug "parmetis library not found in cache, will download and compile"
+
+                    wget http://glaros.dtc.umn.edu/gkhome/fetch/sw/parmetis/parmetis-${PARMETIS_VERSION}.tar.gz
+
+                    tar -zxf parmetis-${PARMETIS_VERSION}.tar.gz
+                    rm parmetis-${PARMETIS_VERSION}.tar.gz
+                    ln -s parmetis-${PARMETIS_VERSION} parmetis
+
+                    cd parmetis-${PARMETIS_VERSION}
+
+                    export CC=mpicc
+                    export CXX=mpicxx
+
+                    make config prefix=`pwd`/build
+
+                    make install
+
+                    cd ../
+                    tar -zcf parmetis-${PARMETIS_VERSION}-${BUILD_KEY}.tar.gz parmetis-${PARMETIS_VERSION}
+                    rsync -azvh parmetis-${PARMETIS_VERSION}-${BUILD_KEY}.tar.gz $WERCKER_CACHE_DIR/
+                fi
+        - script:
+            name: deal.II
+            code: |
+                export DEALII_VERSION=8.4.1
+
+                if [ -f "$WERCKER_CACHE_DIR/dealii-${DEALII_VERSION}-${BUILD_KEY}.tar.gz" ]; then
+                    debug "deal.II library found in cache"
+                    rsync -azvh $WERCKER_CACHE_DIR/dealii-${DEALII_VERSION}-${BUILD_KEY}.tar.gz ./
+                    tar -zxf dealii-${DEALII_VERSION}-${BUILD_KEY}.tar.gz
+                    ln -s dealii-${DEALII_VERSION} dealii
+                else
+                    debug "deal.II library not found in cache, will download and compile"
+
+                    echo $WERCKER_CACHE_DIR
+                    ls -lah $WERCKER_CACHE_DIR/
+
+                    wget https://github.com/dealii/dealii/releases/download/v${DEALII_VERSION}/dealii-${DEALII_VERSION}.tar.gz
+
+                    tar -zxf dealii-${DEALII_VERSION}.tar.gz
+
+                    ln -s dealii-${DEALII_VERSION} dealii
+
+                    rm dealii-${DEALII_VERSION}.tar.gz
+                    export CC=mpicc
+                    export CXX=mpicxx
+                    export F77=mpif77
+                    export F90=mpif90
+                    export METIS_DIR=`pwd`/metis
+                    export PARMETIS_DIR=`pwd`/parmetis
+
+                    cd dealii-${DEALII_VERSION}
+
+                    mkdir build
+                    mkdir bin
+                    cd build
+
+                    cmake -DCMAKE_INSTALL_PREFIX=`pwd`/../bin ..
+
+                    make -j 4 install
+
+                    cd ../../
+
+                    rm -rf dealii-${DEALII_VERSION}/build
+
+                    tar -zcf dealii-${DEALII_VERSION}-${BUILD_KEY}.tar.gz dealii-${DEALII_VERSION}
+                    rsync -azvh dealii-${DEALII_VERSION}-${BUILD_KEY}.tar.gz $WERCKER_CACHE_DIR/
+                fi
+        - script:
+            name: compile deal-fsi
+            code: |
+                cmake -DDEAL_II_DIR=dealii/bin/ .
+                make debug
+                make release
+        - script:
+            name: run test suite with MPI
+            code: mpirun --allow-run-as-root -np 2 ./main
+        - script:
+            name: run test suite
+            code: ./main
+        - script:
+            name: cppcheck
+            code: (cd src && cppcheck --error-exitcode=1 --enable=all .)
+        - script:
+            name: cleanup
+            code: rm -rf *
