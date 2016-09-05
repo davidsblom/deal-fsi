@@ -7,7 +7,7 @@ build:
         - script:
             name: install packages
             code: |
-                apt-get -qq update
+                apt-get clean && apt-get -qq update
                 apt-get -y install git build-essential zlib1g-dev libreadline-dev libncurses-dev libxt-dev libopenmpi-dev openmpi-bin wget cmake petsc-dev gfortran python bison flex python-pip lcov cppcheck libpython-dev python-dev
                 pip install codecov
         - script:
@@ -146,7 +146,7 @@ build:
 
                     cmake -DCMAKE_INSTALL_PREFIX=`pwd`/../bin ..
 
-                    make -j 4 install
+                    make -j `nproc` install
 
                     cd ../../
 
@@ -183,8 +183,8 @@ gcc-5:
         - script:
             name: install packages
             code: |
-                apt-get -qq update
-                apt-get -y install git build-essential zlib1g-dev libreadline-dev libncurses-dev libxt-dev libopenmpi-dev openmpi-bin wget cmake petsc-dev gfortran python bison flex python-pip lcov cppcheck libpython-dev python-dev
+                apt-get clean && apt-get -qq update
+                apt-get -y install git build-essential zlib1g-dev libreadline-dev libncurses-dev libxt-dev libopenmpi-dev openmpi-bin wget cmake gfortran python bison flex python-pip lcov cppcheck libpython-dev python-dev
         - script:
             name: boost
             code: |
@@ -284,9 +284,39 @@ gcc-5:
                     rsync -azvh parmetis-${PARMETIS_VERSION}-${BUILD_KEY}.tar.gz $WERCKER_CACHE_DIR/
                 fi
         - script:
+            name: PETSc
+            code: |
+                export PETSC_VERSION=3.6.4
+                if [ -f "$WERCKER_CACHE_DIR/petsc-${PETSC_VERSION}-${BUILD_KEY}.tar.gz" ]; then
+                    debug "petsc library found in cache"
+                    rsync -azvh $WERCKER_CACHE_DIR/petsc-${PETSC_VERSION}-${BUILD_KEY}.tar.gz ./
+                    tar -zxf petsc-${PETSC_VERSION}-${BUILD_KEY}.tar.gz
+                    ln -s petsc-${PETSC_VERSION} petsc
+                else
+                    export PETSC_ARCH=x86_64
+                    export PETSC_DIR=`pwd`/petsc-${PETSC_VERSION}
+                    wget http://ftp.mcs.anl.gov/pub/petsc/release-snapshots/petsc-lite-${PETSC_VERSION}.tar.gz -O - | tar xz
+                    cd $PETSC_DIR
+                    ./config/configure.py --with-shared=1 \
+                        --with-x=0 --with-cc=mpicc --with-cxx=mpicxx \
+                        --with-fc=mpif77 --with-debugging=0 \
+                        --download-mumps --download-scalapack \
+                        --download-fblaslapack --download-hypre \
+                        --download-ptscotch
+                    make
+
+                    cd ..
+
+                    tar -zcf petsc-${PETSC_VERSION}-${BUILD_KEY}.tar.gz petsc-${PETSC_VERSION}
+                    rsync -azvh petsc-${PETSC_VERSION}-${BUILD_KEY}.tar.gz $WERCKER_CACHE_DIR/
+                fi
+        - script:
             name: deal.II
             code: |
                 export DEALII_VERSION=8.4.1
+                export PETSC_VERSION=3.6.4
+                export PETSC_ARCH=x86_64
+                export PETSC_DIR=`pwd`/petsc-${PETSC_VERSION}
 
                 if [ -f "$WERCKER_CACHE_DIR/dealii-${DEALII_VERSION}-${BUILD_KEY}.tar.gz" ]; then
                     debug "deal.II library found in cache"
@@ -296,16 +326,10 @@ gcc-5:
                 else
                     debug "deal.II library not found in cache, will download and compile"
 
-                    echo $WERCKER_CACHE_DIR
-                    ls -lah $WERCKER_CACHE_DIR/
-
-                    wget https://github.com/dealii/dealii/releases/download/v${DEALII_VERSION}/dealii-${DEALII_VERSION}.tar.gz
-
-                    tar -zxf dealii-${DEALII_VERSION}.tar.gz
+                    wget https://github.com/dealii/dealii/releases/download/v${DEALII_VERSION}/dealii-${DEALII_VERSION}.tar.gz -O - | tar xz
 
                     ln -s dealii-${DEALII_VERSION} dealii
 
-                    rm dealii-${DEALII_VERSION}.tar.gz
                     export CC=mpicc
                     export CXX=mpicxx
                     export F77=mpif77
@@ -313,15 +337,18 @@ gcc-5:
                     export METIS_DIR=`pwd`/metis
                     export PARMETIS_DIR=`pwd`/parmetis
 
-                    cd dealii-${DEALII_VERSION}
+                    cd dealii-${DEALII_VERSION} && mkdir build bin && cd build
 
-                    mkdir build
-                    mkdir bin
-                    cd build
+                    cmake -DDEAL_II_WITH_MPI=ON \
+                        -DDEAL_II_WITH_METIS=ON \
+                        -DDEAL_II_WITH_PETSC=ON \
+                        -DDEAL_II_COMPONENT_EXAMPLES=OFF \
+                        -DCMAKE_INSTALL_PREFIX=`pwd`/../bin \
+                        ..
 
                     cmake -DCMAKE_INSTALL_PREFIX=`pwd`/../bin ..
 
-                    make -j 4 install
+                    make -j `nproc` install
 
                     cd ../../
 
@@ -347,4 +374,4 @@ gcc-5:
             code: (cd src && cppcheck --error-exitcode=1 --enable=all .)
         - script:
             name: cleanup
-            code: rm -rf *
+            code: rm -rf * .git .gitignore
